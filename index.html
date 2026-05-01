@@ -44,7 +44,9 @@
   main {
     max-width: 760px;
     margin: 0 auto;
-    padding: 28px 24px 80px;
+    padding: 28px 24px max(80px, env(safe-area-inset-bottom));
+    position: relative;
+    z-index: 5;
   }
   h1 {
     font-size: 18px;
@@ -131,7 +133,14 @@
     letter-spacing: 0.04em;
     padding: 14px 36px;
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color: rgba(255,255,255,0.15);
+    -webkit-appearance: none;
+    appearance: none;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    position: relative;
+    z-index: 10;
     transition: transform 0.05s ease, filter 0.15s;
     min-width: 200px;
     text-transform: uppercase;
@@ -304,17 +313,21 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.55; }
   }
-  /* full-screen subliminal flash on correct */
-  .flash-layer {
+  /* full-screen subliminal flash on correct.
+     Implemented as a body::before pseudo-element rather than a real DOM
+     element so it can never become a touch target on iOS — pointer-events:
+     none is supposed to be enough but pseudo-elements remove all ambiguity. */
+  body::before {
+    content: "";
     position: fixed;
     inset: 0;
     pointer-events: none;
-    z-index: 999;
+    z-index: 1;
     background: radial-gradient(circle at center, var(--accent-soft) 0%, transparent 60%);
     opacity: 0;
     transition: opacity 0.18s ease-out;
   }
-  .flash-layer.on { opacity: 1; transition-duration: 0.04s; }
+  body.flash::before { opacity: 1; transition-duration: 0.04s; }
 
   /* floating "+W" feedback above the input */
   .answer-wrap { position: relative; }
@@ -488,7 +501,6 @@
 </style>
 </head>
 <body>
-<div class="flash-layer" id="flash-layer"></div>
 <main>
   <h1>Personal Arithmetic<span class="dot">.</span></h1>
 
@@ -541,13 +553,13 @@
 
     <div class="pool-line" id="pool-line"></div>
     <div class="cta-row">
-      <button class="cta" id="start-btn">Start round</button>
+      <button type="button" class="cta" id="start-btn">Start round</button>
     </div>
     <div class="start-prompt">tap, or press <kbd>space</kbd> / <kbd>enter</kbd></div>
 
     <div class="footer">
-      <button id="audio-toggle" title="Toggle answer-tick sound">audio: off</button>
-      <button id="reset-btn" title="Wipe all local data">reset all data</button>
+      <button type="button" id="audio-toggle" title="Toggle answer-tick sound">audio: off</button>
+      <button type="button" id="reset-btn" title="Wipe all local data">reset all data</button>
     </div>
   </section>
 
@@ -563,8 +575,19 @@
     </div>
     <div class="question" id="question">&nbsp;</div>
     <div class="answer-wrap">
-      <input class="answer" id="answer" inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      <input class="answer" id="answer"
+             type="text"
+             inputmode="numeric"
+             pattern="[0-9]*"
+             enterkeyhint="done"
+             autocomplete="off"
+             autocorrect="off"
+             autocapitalize="off"
+             spellcheck="false" />
       <div id="floater-host"></div>
+    </div>
+    <div class="cta-row">
+      <button type="button" class="cta tiny" id="round-quit-btn">end round</button>
     </div>
   </section>
 
@@ -585,7 +608,11 @@
         <svg class="radar" id="radar-end" width="320" height="320" viewBox="0 0 320 320"></svg>
       </div>
     </div>
-    <div class="start-prompt">Press <kbd>Space</kbd> or <kbd>Enter</kbd> to play again · <kbd>Esc</kbd> for home</div>
+    <div class="cta-row">
+      <button type="button" class="cta" id="play-again-btn">Play again</button>
+      <button type="button" class="cta secondary" id="home-btn">Home</button>
+    </div>
+    <div class="start-prompt"><kbd>space</kbd> / <kbd>enter</kbd> to replay · <kbd>esc</kbd> for home</div>
   </section>
 </main>
 
@@ -1524,12 +1551,11 @@ function spawnFloater(text, kind) {
 }
 
 function flashBg() {
-  const el = document.getElementById("flash-layer");
-  if (!el) return;
-  el.classList.remove("on");
-  void el.offsetWidth;
-  el.classList.add("on");
-  setTimeout(() => el.classList.remove("on"), 80);
+  document.body.classList.remove("flash");
+  // force reflow so the next class addition re-triggers the transition
+  void document.body.offsetWidth;
+  document.body.classList.add("flash");
+  setTimeout(() => document.body.classList.remove("flash"), 80);
 }
 
 function onAnswerInput() {
@@ -1728,6 +1754,31 @@ document.addEventListener("keydown", (e) => {
       startRound();
     }
   }
+});
+
+// Listener helper: bind both `click` and `pointerup` (deduped) so a tap on iOS
+// is caught even if some weirdness suppresses one event type. Guards re-entrance
+// with a 250ms debounce on the same target.
+function safeTap(el, handler) {
+  if (!el) return;
+  let last = 0;
+  const fire = (e) => {
+    const now = Date.now();
+    if (now - last < 250) return;
+    last = now;
+    try { handler(e); } catch (err) { console.error(err); }
+  };
+  el.addEventListener("click", fire);
+  el.addEventListener("pointerup", fire);
+}
+safeTap(document.getElementById("start-btn"), startRound);
+safeTap(document.getElementById("play-again-btn"), startRound);
+safeTap(document.getElementById("home-btn"), () => {
+  setScreen("home");
+  renderHome();
+});
+safeTap(document.getElementById("round-quit-btn"), () => {
+  if (session && session.timerId) endRound();
 });
 
 document.getElementById("audio-toggle").addEventListener("click", () => {
