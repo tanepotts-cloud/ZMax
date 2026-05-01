@@ -331,7 +331,20 @@
     opacity: 0;
     transition: opacity 0.18s ease-out;
   }
-  body.flash::before { opacity: 1; transition-duration: 0.04s; }
+  body.flash::before { opacity: var(--flash-strength, 1); transition-duration: 0.04s; }
+  /* Edge-glow layer — pulses in proportion to chain rush. Behind content. */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background: radial-gradient(ellipse at center,
+      transparent 55%,
+      rgba(249,115,22,calc(0.55 * var(--rush, 0))) 100%);
+    opacity: var(--rush-glow, 0);
+    transition: opacity 0.5s ease-out;
+  }
 
   /* floating "+W" feedback above the input */
   .answer-wrap { position: relative; }
@@ -341,20 +354,22 @@
     bottom: 100%;
     transform: translateX(-50%);
     font-family: ui-monospace, "SF Mono", Menlo, monospace;
-    font-size: 22px;
-    font-weight: 600;
+    font-size: var(--floater-size, 22px);
+    font-weight: 700;
     color: var(--accent);
+    text-shadow: 0 0 var(--floater-glow, 0px) var(--accent);
     pointer-events: none;
     opacity: 0;
-    animation: floater 0.85s ease-out;
+    animation: floater var(--floater-dur, 0.85s) ease-out;
     white-space: nowrap;
+    letter-spacing: 0.02em;
   }
-  .floater.bonus { color: var(--near); }
-  .floater.fast { color: var(--accent-2); }
+  .floater.bonus { color: var(--near); text-shadow: 0 0 var(--floater-glow, 0px) var(--near); }
+  .floater.fast  { color: var(--accent-2); text-shadow: 0 0 var(--floater-glow, 0px) var(--accent-2); }
   @keyframes floater {
     0% { opacity: 0; transform: translate(-50%, 8px); }
     20% { opacity: 1; }
-    100% { opacity: 0; transform: translate(-50%, -36px); }
+    100% { opacity: 0; transform: translate(-50%, -52px); }
   }
   .question {
     font-family: ui-monospace, "SF Mono", Menlo, monospace;
@@ -559,11 +574,11 @@
     text-shadow: 0 0 16px rgba(250, 204, 21, 0.45);
   }
 
-  /* Score pulse on correct */
-  .round-bar .score.bump { animation: score-bump 0.25s ease-out; }
+  /* Score pulse on correct — magnitude scales with rush via a CSS variable */
+  .round-bar .score.bump { animation: score-bump 0.28s ease-out; }
   @keyframes score-bump {
-    0% { transform: scale(1); }
-    45% { transform: scale(1.18); }
+    0%   { transform: scale(1); }
+    45%  { transform: scale(var(--bump-scale, 1.18)); }
     100% { transform: scale(1); }
   }
 
@@ -1277,24 +1292,47 @@ function ensureAudioCtx() {
   }
 }
 function tick(freq) {
+  // Simple single-tone tick — used for round-end and audio-toggle test.
   if (!state.audio || !audioCtx) return;
-  // best-effort resume in case the context drifted to suspended
-  if (audioCtx.state === "suspended") {
-    try { audioCtx.resume(); } catch (e) {}
-  }
+  if (audioCtx.state === "suspended") { try { audioCtx.resume(); } catch (e) {} }
+  try { playOsc(freq, 0.08, 0.06, audioCtx.currentTime, "sine"); } catch (e) {}
+}
+function playOsc(freq, vol, decay, t, type) {
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type || "sine";
+  o.frequency.value = freq;
+  o.connect(g);
+  g.connect(audioCtx.destination);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), t + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+  o.start(t);
+  o.stop(t + decay + 0.02);
+}
+// Rich tick — layered sine partials whose count and brightness scale with
+// `rush` (0–1), the time-since-last-correct factor. Slow chains play a
+// single muted base tone; fast chains stack a perfect-fifth and octave on
+// top, raising the tone into a brighter chord. Challenge questions get a
+// further pitch lift.
+function richTick(rush, opts) {
+  if (!state.audio || !audioCtx) return;
+  if (audioCtx.state === "suspended") { try { audioCtx.resume(); } catch (e) {} }
+  const challenge = !!(opts && opts.challenge);
+  const r = Math.max(0, Math.min(1, rush || 0));
   try {
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = "sine";
-    o.frequency.value = freq;
-    o.connect(g);
-    g.connect(audioCtx.destination);
     const t = audioCtx.currentTime;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.08, t + 0.005);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
-    o.start(t);
-    o.stop(t + 0.08);
+    // base pitch lifts ~660Hz (slow) → ~1100Hz (max rush). Challenges add ~+200Hz.
+    const baseFreq = 660 + r * 440 + (challenge ? 220 : 0);
+    const baseVol  = 0.05 + r * 0.07;
+    const decay    = 0.06 + r * 0.10;
+    playOsc(baseFreq, baseVol, decay, t, "sine");
+    // perfect fifth from rush ≥ 0.35
+    if (r >= 0.35) playOsc(baseFreq * 1.5, baseVol * 0.65, decay * 0.9, t + 0.005, "sine");
+    // octave from rush ≥ 0.65 (full chord, brightest moment)
+    if (r >= 0.65) playOsc(baseFreq * 2,   baseVol * 0.5,  decay * 0.85, t + 0.01, "sine");
+    // shimmer on a max-rush challenge — major-third sparkle
+    if (r >= 0.8 && challenge) playOsc(baseFreq * 2.5, baseVol * 0.4, decay * 0.7, t + 0.015, "triangle");
   } catch (e) {}
 }
 
@@ -1864,7 +1902,11 @@ function startRound(durationOverride) {
     combo: 0,
     bestCombo: 0,
     isEncore: !!durationOverride,
+    lastCorrectAt: null,
+    rushDecayId: null,
   };
+  // clear any leftover rush glow from a previous session
+  setRushGlow(0);
   setScreen("round");
   updateTimer();
   updateScore(true);
@@ -1966,22 +2008,39 @@ function nextQuestion(skipAnim) {
   session.questionStart = performance.now();
 }
 
-function spawnFloater(text, kind) {
+function spawnFloater(text, kind, rush) {
   const host = document.getElementById("floater-host");
   if (!host) return;
   const el = document.createElement("div");
   el.className = "floater" + (kind ? " " + kind : "");
+  // size and glow scale with rush — a max-rush floater is ~1.6× the base
+  const r = Math.max(0, Math.min(1, rush || 0));
+  const size = (22 + r * 16).toFixed(0);
+  const glow = (r * 14).toFixed(0);
+  const dur  = (0.85 + r * 0.25).toFixed(2);
+  el.style.setProperty("--floater-size", size + "px");
+  el.style.setProperty("--floater-glow", glow + "px");
+  el.style.setProperty("--floater-dur",  dur + "s");
   el.textContent = text;
   host.appendChild(el);
-  setTimeout(() => el.remove(), 1000);
+  setTimeout(() => el.remove(), 1100);
 }
 
-function flashBg() {
+function flashBg(rush) {
+  const r = Math.max(0, Math.min(1, rush || 0));
+  document.body.style.setProperty("--flash-strength", (0.4 + r * 0.6).toFixed(2));
   document.body.classList.remove("flash");
-  // force reflow so the next class addition re-triggers the transition
   void document.body.offsetWidth;
   document.body.classList.add("flash");
-  setTimeout(() => document.body.classList.remove("flash"), 80);
+  setTimeout(() => document.body.classList.remove("flash"), 90 + r * 50);
+}
+
+// Update the persistent edge-glow layer. Decays slowly so the screen stays
+// "lit" through a fast chain and fades out a few hundred ms after a slow tap.
+function setRushGlow(rush) {
+  const r = Math.max(0, Math.min(1, rush || 0));
+  document.body.style.setProperty("--rush", r.toFixed(2));
+  document.body.style.setProperty("--rush-glow", (r * 0.85).toFixed(2));
 }
 
 function onAnswerInput() {
@@ -1992,7 +2051,8 @@ function onAnswerInput() {
   if (!Number.isFinite(n)) return;
   if (n !== session.current.answer) return;
 
-  const elapsed = performance.now() - session.questionStart;
+  const now = performance.now();
+  const elapsed = now - session.questionStart;
   const op = session.current.op;
   const w = questionWeight(session.current);
   const sb = speedBonus(op, elapsed);
@@ -2006,6 +2066,18 @@ function onAnswerInput() {
   const challengeMul = session.current.isChallenge ? 2 : 1;
   const earned = (w * sb + cb) * challengeMul;
 
+  // Rush factor — how tight the cadence is between consecutive correct
+  // answers. Drives layered audio harmonics and visual intensity.
+  // delta ≤ 0.6s → rush 1.0 (max chord, max glow); delta ≥ 3.5s → rush 0.
+  let rush = 0;
+  if (session.lastCorrectAt != null) {
+    const delta = now - session.lastCorrectAt;
+    if (delta <= 600) rush = 1;
+    else if (delta >= 3500) rush = 0;
+    else rush = 1 - (delta - 600) / 2900;
+  }
+  session.lastCorrectAt = now;
+
   session.responses.push({ op, t: elapsed, weight: w, multiplier: sb, comboBonus: cb, earned });
   adjustSkill(op, elapsed);
   updateMedian(op, elapsed);
@@ -2013,16 +2085,24 @@ function onAnswerInput() {
   state.totalAnswered += 1;
   applyUnlocks();
 
-  // dopamine layer
-  tick(session.current.isChallenge ? 1320 : (sb >= 1.25 ? 1100 : 880));
-  flashBg();
+  // dopamine layer — sound gets richer (more partials), floater bigger,
+  // background flash brighter, score pulse stronger as rush approaches 1.
+  richTick(rush, { challenge: session.current.isChallenge });
+  flashBg(rush);
+  setRushGlow(rush);
+  // glow decays back toward 0 if user pauses for ≥1.2s
+  if (session.rushDecayId) clearTimeout(session.rushDecayId);
+  session.rushDecayId = setTimeout(() => setRushGlow(0), 1200);
+  // score pulse scale: 1.18 → 1.40 with rush
+  document.body.style.setProperty("--bump-scale", (1.18 + rush * 0.22).toFixed(2));
+
   let label = `+${earned.toFixed(1)}`;
   let kind = null;
   if (session.current.isChallenge) { label = `⚡⚡ +${earned.toFixed(1)}`; kind = "bonus"; }
   else if (sb >= 1.5) { label = `⚡ +${earned.toFixed(1)}`; kind = "fast"; }
   else if (sb >= 1.25) { label = `+${earned.toFixed(1)}`; kind = "fast"; }
   else if (cb > 0) { label = `+${earned.toFixed(1)}`; kind = "bonus"; }
-  spawnFloater(label, kind);
+  spawnFloater(label, kind, rush);
 
   el.value = "";
   updateScore();
@@ -2034,6 +2114,8 @@ function onAnswerInput() {
 // ---------- end ----------
 function endRound() {
   clearInterval(session.timerId);
+  if (session.rushDecayId) clearTimeout(session.rushDecayId);
+  setRushGlow(0);
   tick(440);
 
   // commit per-op deltas
