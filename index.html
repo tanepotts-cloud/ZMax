@@ -22,6 +22,9 @@
     --accent-mid: rgba(249,115,22,0.45);
     --accent-2: #60a5fa;
     --accent-2-soft: rgba(96,165,250,0.18);
+    --accent-h: #22d3ee;
+    --accent-h-soft: rgba(34,211,238,0.16);
+    --accent-h-mid: rgba(34,211,238,0.45);
     --grid-line: #21262d;
     --good: #f97316;
     --near: #facc15;
@@ -210,9 +213,13 @@
   }
   .radar .label.locked { opacity: 0.45; }
   .radar .label.next { fill: var(--accent); opacity: 0.85; }
-  .radar .poly-now { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
-  .radar .poly-prev { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.55; }
-  .radar .vertex { fill: var(--accent); }
+  .radar .poly-now  { stroke-linejoin: round; }
+  .radar .poly-prev { fill: none; stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 3 4; opacity: 0.5; }
+  .radar .poly-aura { animation: poly-aura-breathe 4.5s ease-in-out infinite; }
+  @keyframes poly-aura-breathe {
+    0%, 100% { opacity: 0.18; }
+    50%      { opacity: 0.34; }
+  }
 
   /* Trend chart — dynamic viewBox sized in actual pixels so text never stretches */
   .trend-wrap { padding: 4px 0; }
@@ -593,6 +600,70 @@
   }
   .home-insight:empty { display: none; }
 
+  /* Hard mode visual theming — recolours radar/trend within #hard-section so
+     the two modes are visually distinct at a glance. */
+  .hard-mode .radar .poly-now { fill: var(--accent-h-soft); stroke: var(--accent-h); }
+  .hard-mode .radar .vertex   { fill: var(--accent-h); }
+  .hard-mode .radar .label.next { fill: var(--accent-h); }
+  .hard-mode .trend .line     { stroke: var(--accent-h); }
+  .hard-mode .trend .area-fill{ fill: var(--accent-h-soft); }
+  .hard-mode .trend .point    { fill: var(--accent-h); }
+  .hard-mode .trend .axis-label.left { fill: var(--accent-h); }
+  .hard-mode .stat-value.accent { color: var(--accent-h); }
+  .hard-mode .top-scores .score.gold { color: var(--accent-h); }
+  .hard-mode .panel { border-color: rgba(34,211,238,0.18); }
+
+  .mode-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--accent-h);
+    margin: 24px 0 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+  }
+  .mode-divider::before, .mode-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--accent-h-mid), transparent);
+  }
+
+  .active-mode-pill {
+    display: inline-block;
+    background: rgba(0,0,0,0.25);
+    color: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+    letter-spacing: 0.1em;
+    vertical-align: middle;
+    text-transform: uppercase;
+  }
+  .active-mode-pill.hard {
+    background: var(--accent-h);
+    color: #0e1116;
+  }
+
+  /* Inline 2×2 matrix used by det questions */
+  .question .m22 {
+    display: inline-grid;
+    grid-template-columns: auto auto;
+    grid-template-rows: auto auto;
+    gap: 0.05em 0.55em;
+    vertical-align: middle;
+    font-size: 0.7em;
+    line-height: 1.05;
+    padding: 0.05em 0.4em;
+    border-left: 3px solid currentColor;
+    border-right: 3px solid currentColor;
+    margin: 0 0.2em;
+    text-align: center;
+  }
+
   /* Tomorrow-target line on end screen */
   .tomorrow {
     text-align: center;
@@ -692,12 +763,46 @@
     </div>
 
     <div class="pool-line" id="pool-line"></div>
+
+    <!-- Hard mode panels — visible only when toggled on -->
+    <section id="hard-section" class="hard-mode" hidden>
+      <div class="mode-divider"><span>HARD MODE</span></div>
+
+      <div class="panel">
+        <div class="panel-title">Skill (advanced)</div>
+        <div class="radar-wrap">
+          <svg class="radar" id="radar-hard" width="320" height="320" viewBox="0 0 320 320"></svg>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Skill area over time (advanced)</div>
+        <div class="trend-wrap"><svg class="trend" id="trend-hard"></svg></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Stats (advanced)</div>
+        <div class="stats-row">
+          <div class="stat"><span class="stat-label">Best score</span><span class="stat-value accent" id="stat-best-hard">0</span></div>
+        </div>
+        <div class="velocity" id="velocity-hard"></div>
+      </div>
+
+      <div class="panel" id="top-scores-panel-hard" hidden>
+        <div class="panel-title">Top scores (advanced)</div>
+        <ol class="top-scores" id="top-scores-hard"></ol>
+      </div>
+
+      <div class="pool-line" id="pool-line-hard"></div>
+    </section>
+
     <div class="cta-row">
-      <button type="button" class="cta" id="start-btn">Start round</button>
+      <button type="button" class="cta" id="start-btn">Start round <span class="active-mode-pill" id="active-mode-pill">easy</span></button>
     </div>
     <div class="start-prompt">tap, or press <kbd>space</kbd> / <kbd>enter</kbd></div>
 
     <div class="footer">
+      <button type="button" id="hard-toggle" title="Toggle hard mode (calc/linear)">hard mode: off</button>
       <button type="button" id="audio-toggle" title="Toggle answer-tick sound">audio: off</button>
       <button type="button" id="reset-btn" title="Wipe all local data">reset all data</button>
     </div>
@@ -763,16 +868,27 @@
 "use strict";
 
 // ---------- constants ----------
-const OPS = ["add", "sub", "mul", "div", "sq", "pow", "sqrt", "fact"];
-const OP_LABEL = {
+// Two parallel modes: "easy" (the original 8 arithmetic operators) and "hard"
+// (calc/linear-algebra ops with positive-integer answers). Each mode has its
+// own skill, unlocks, history, top scores, etc. — see state.modes below.
+const OPS_EASY = ["add", "sub", "mul", "div", "sq", "pow", "sqrt", "fact"];
+const OPS_HARD = ["dot", "magsq", "det", "poly", "deriv", "choose"];
+const OP_LABEL_EASY = {
   add: "+", sub: "−", mul: "×", div: "÷",
   sq: "n²", pow: "aⁿ", sqrt: "√", fact: "n!"
 };
-const OP_NAME = {
+const OP_LABEL_HARD = {
+  dot: "·", magsq: "|v|²", det: "det", poly: "P(x)", deriv: "f′", choose: "ⁿCₖ"
+};
+const OP_NAME_EASY = {
   add: "addition", sub: "subtraction", mul: "multiplication", div: "division",
   sq: "squares", pow: "powers", sqrt: "square roots", fact: "factorials"
 };
-const UNLOCK_TIERS = [
+const OP_NAME_HARD = {
+  dot: "dot product", magsq: "magnitude squared", det: "determinant",
+  poly: "polynomial eval", deriv: "derivative", choose: "combinations"
+};
+const UNLOCK_TIERS_EASY = [
   { op: "mul",  threshold: 12 },
   { op: "div",  threshold: 20 },
   { op: "sq",   threshold: 30 },
@@ -780,38 +896,82 @@ const UNLOCK_TIERS = [
   { op: "sqrt", threshold: 50 },
   { op: "fact", threshold: 65 },
 ];
+const UNLOCK_TIERS_HARD = [
+  { op: "det",    threshold: 8 },
+  { op: "poly",   threshold: 16 },
+  { op: "deriv",  threshold: 24 },
+  { op: "choose", threshold: 34 },
+];
+// Mode-aware accessors — every reference to ops/labels/etc goes through these
+// so the same render and game logic powers both modes.
+function ops()         { return state.mode === "hard" ? OPS_HARD       : OPS_EASY; }
+function opLabels()    { return state.mode === "hard" ? OP_LABEL_HARD  : OP_LABEL_EASY; }
+function opNames()     { return state.mode === "hard" ? OP_NAME_HARD   : OP_NAME_EASY; }
+function unlockTiers() { return state.mode === "hard" ? UNLOCK_TIERS_HARD : UNLOCK_TIERS_EASY; }
+function bucket()      { return state.modes[state.mode]; }
+// Defaults for a fresh hard-mode bucket — only `dot` and `magsq` start unlocked.
+function defaultHardBucket() {
+  return {
+    skill: { dot: 0, magsq: 0, det: 0, poly: 0, deriv: 0, choose: 0 },
+    unlocks: ["dot", "magsq"],
+    bestScore: 0,
+    history: [],
+    lastRadar: null,
+    opMedians: { dot: 4500, magsq: 4500, det: 5500, poly: 5500, deriv: 6000, choose: 4500 },
+    opPRs: {},
+    bestCombo: 0,
+    topScores: [],
+  };
+}
 const ROUND_SECONDS = 120;
 
 // ---------- mini-achievements ----------
 // Tasteful milestones — toasted ONCE on the end screen the round they're earned.
 // No badges, no titles. The named criterion is the reward.
+// Milestone checks read against either mode's bucket (whichever achieves the
+// criterion first earns it) plus shared streak/totalAnswered. Achievements
+// list itself is shared across modes.
+function anyBest(threshold) {
+  return state.modes.easy.bestScore >= threshold || state.modes.hard.bestScore >= threshold;
+}
+function anySkill(threshold) {
+  const mx = (b, opsArr) => Math.max(0, ...opsArr.map(o => b.skill[o] || 0));
+  return Math.max(mx(state.modes.easy, OPS_EASY), mx(state.modes.hard, OPS_HARD)) >= threshold;
+}
+function anyCombo(threshold) {
+  return state.modes.easy.bestCombo >= threshold || state.modes.hard.bestCombo >= threshold;
+}
+function totalRoundsPlayed() {
+  return state.modes.easy.history.length + state.modes.hard.history.length;
+}
 const MILESTONES = [
-  { id: "first_round",      label: "first round complete",      check: (s) => s.history.length >= 1 },
-  { id: "score_25",         label: "first round above 25",      check: (s) => s.bestScore >= 25 },
-  { id: "score_50",         label: "first round above 50",      check: (s) => s.bestScore >= 50 },
-  { id: "score_100",        label: "100 club",                  check: (s) => s.bestScore >= 100 },
-  { id: "score_200",        label: "200 club",                  check: (s) => s.bestScore >= 200 },
-  { id: "streak_3",         label: "3-day streak",              check: (s) => s.streak.longest >= 3 },
-  { id: "streak_7",         label: "1-week streak",             check: (s) => s.streak.longest >= 7 },
-  { id: "streak_14",        label: "2-week streak",             check: (s) => s.streak.longest >= 14 },
-  { id: "streak_30",        label: "30-day streak",             check: (s) => s.streak.longest >= 30 },
-  { id: "answered_100",     label: "100 questions answered",    check: (s) => s.totalAnswered >= 100 },
-  { id: "answered_500",     label: "500 questions answered",    check: (s) => s.totalAnswered >= 500 },
-  { id: "answered_1000",    label: "1,000 questions answered",  check: (s) => s.totalAnswered >= 1000 },
-  { id: "answered_5000",    label: "5,000 questions answered",  check: (s) => s.totalAnswered >= 5000 },
-  { id: "all_unlocked",     label: "all operators unlocked",    check: (s) => s.unlocks.length >= 8 },
-  { id: "skill_50",         label: "any skill at 50",           check: (s) => Math.max(...OPS.map(o => s.skill[o] || 0)) >= 50 },
-  { id: "skill_75",         label: "any skill at 75",           check: (s) => Math.max(...OPS.map(o => s.skill[o] || 0)) >= 75 },
-  { id: "skill_100",        label: "skill maxed",               check: (s) => Math.max(...OPS.map(o => s.skill[o] || 0)) >= 100 },
-  { id: "combo_10",         label: "10-question combo",         check: (s) => s.bestCombo >= 10 },
-  { id: "combo_25",         label: "25-question combo",         check: (s) => s.bestCombo >= 25 },
-  { id: "combo_50",         label: "50-question combo",         check: (s) => s.bestCombo >= 50 },
+  { id: "first_round",      label: "first round complete",      check: () => totalRoundsPlayed() >= 1 },
+  { id: "score_25",         label: "first round above 25",      check: () => anyBest(25) },
+  { id: "score_50",         label: "first round above 50",      check: () => anyBest(50) },
+  { id: "score_100",        label: "100 club",                  check: () => anyBest(100) },
+  { id: "score_200",        label: "200 club",                  check: () => anyBest(200) },
+  { id: "streak_3",         label: "3-day streak",              check: () => state.streak.longest >= 3 },
+  { id: "streak_7",         label: "1-week streak",             check: () => state.streak.longest >= 7 },
+  { id: "streak_14",        label: "2-week streak",             check: () => state.streak.longest >= 14 },
+  { id: "streak_30",        label: "30-day streak",             check: () => state.streak.longest >= 30 },
+  { id: "answered_100",     label: "100 questions answered",    check: () => state.totalAnswered >= 100 },
+  { id: "answered_500",     label: "500 questions answered",    check: () => state.totalAnswered >= 500 },
+  { id: "answered_1000",    label: "1,000 questions answered",  check: () => state.totalAnswered >= 1000 },
+  { id: "answered_5000",    label: "5,000 questions answered",  check: () => state.totalAnswered >= 5000 },
+  { id: "all_unlocked",     label: "easy mode fully unlocked",  check: () => state.modes.easy.unlocks.length >= OPS_EASY.length },
+  { id: "all_unlocked_hard",label: "hard mode fully unlocked",  check: () => state.modes.hard.unlocks.length >= OPS_HARD.length },
+  { id: "skill_50",         label: "any skill at 50",           check: () => anySkill(50) },
+  { id: "skill_75",         label: "any skill at 75",           check: () => anySkill(75) },
+  { id: "skill_100",        label: "skill maxed",               check: () => anySkill(100) },
+  { id: "combo_10",         label: "10-question combo",         check: () => anyCombo(10) },
+  { id: "combo_25",         label: "25-question combo",         check: () => anyCombo(25) },
+  { id: "combo_50",         label: "50-question combo",         check: () => anyCombo(50) },
 ];
 function checkMilestones() {
   const newly = [];
   for (const m of MILESTONES) {
     if (state.achievements.includes(m.id)) continue;
-    if (m.check(state)) {
+    if (m.check()) {
       state.achievements.push(m.id);
       newly.push(m);
     }
@@ -827,7 +987,7 @@ const CHALLENGE_TEMPLATES = [
   () => ({ type: "answer_correct", target: 60, label: "answer 60 questions correctly" }),
   () => ({ type: "play_rounds",    target: 3,  label: "play 3 rounds" }),
   () => ({ type: "play_rounds",    target: 5,  label: "play 5 rounds" }),
-  () => ({ type: "single_score",   target: Math.max(20, Math.round((state.bestScore || 20) * 0.85)), label: null }),
+  () => ({ type: "single_score",   target: Math.max(20, Math.round((bucket().bestScore || 20) * 0.85)), label: null }),
   () => ({ type: "combo",          target: 10, label: "hit a 10-question combo" }),
   () => ({ type: "combo",          target: 20, label: "hit a 20-question combo" }),
   () => ({ type: "fast_avg",       target: 1.5, label: "average under 1.5s in a round" }),
@@ -905,29 +1065,46 @@ function questionWeight(q) {
     case "pow":  return clamp(3 + lg(ans / 32), 3, 7);
     case "sqrt": return clamp(2 + lg(ans / 5),  2, 5);
     case "fact": return clamp(3 + lg(ans / 6),  3, 6);
+    // Hard-mode weights — base higher than easy ops to reflect cognitive load.
+    case "dot":   return clamp(3 + lg(ans / 30),  3, 7);
+    case "magsq": return clamp(3 + lg(ans / 30),  3, 7);
+    case "det":   return clamp(3 + lg(ans / 15),  3, 7);
+    case "poly":  return clamp(4 + lg(ans / 50),  4, 8);
+    case "deriv": return clamp(4 + lg(ans / 30),  4, 8);
+    case "choose":return clamp(3 + lg(ans / 10),  3, 7);
   }
   return 1;
 }
 function fmtScore(n) { return n.toFixed(1); }
 
 // ---------- persistence ----------
+// Existing easy-mode keys are kept at the top level for backwards compatibility.
+// Hard mode is persisted as a single composite blob under `zmac.h`. The active
+// mode flag is `zmac.mode`. On load, easy-mode top-level fields are migrated
+// into state.modes.easy, and state.modes.hard comes either from `zmac.h` or
+// the default empty hard bucket.
 const KEYS = {
-  skill: "zmac.skill",
-  bestScore: "zmac.bestScore",
+  // shared
   totalAnswered: "zmac.totalAnswered",
-  lastRadar: "zmac.lastRadar",
-  history: "zmac.history",
   daily: "zmac.daily",
   streak: "zmac.streak",
-  unlocks: "zmac.unlocks",
   audio: "zmac.audio",
-  opMedians: "zmac.opMedians",
   achievements: "zmac.achievements",
   dailyChallenge: "zmac.dailyChallenge",
+  hourPlays: "zmac.hourPlays",
+  mode: "zmac.mode",
+  // easy mode (legacy top-level keys)
+  skill: "zmac.skill",
+  bestScore: "zmac.bestScore",
+  lastRadar: "zmac.lastRadar",
+  history: "zmac.history",
+  unlocks: "zmac.unlocks",
+  opMedians: "zmac.opMedians",
   bestCombo: "zmac.bestCombo",
   topScores: "zmac.topScores",
   opPRs: "zmac.opPRs",
-  hourPlays: "zmac.hourPlays",
+  // hard mode (single composite blob)
+  hard: "zmac.h",
 };
 function safeGet(key, fallback) {
   try {
@@ -943,49 +1120,68 @@ function safeSet(key, val) {
   catch (e) {}
 }
 function loadState() {
-  const s = {
+  const easy = {
     skill: safeGet(KEYS.skill, { add: 10, sub: 10, mul: 0, div: 0, sq: 0, pow: 0, sqrt: 0, fact: 0 }),
     bestScore: safeGet(KEYS.bestScore, 0),
-    totalAnswered: safeGet(KEYS.totalAnswered, 0),
     lastRadar: safeGet(KEYS.lastRadar, null),
     history: safeGet(KEYS.history, []),
-    daily: safeGet(KEYS.daily, {}),
-    streak: safeGet(KEYS.streak, { current: 0, longest: 0, lastDate: null }),
     unlocks: safeGet(KEYS.unlocks, ["add", "sub"]),
-    audio: safeGet(KEYS.audio, true),
     opMedians: safeGet(KEYS.opMedians, { add: 2200, sub: 2400, mul: 3000, div: 3200, sq: 3000, pow: 3500, sqrt: 3000, fact: 2800 }),
-    achievements: safeGet(KEYS.achievements, []),
-    dailyChallenge: safeGet(KEYS.dailyChallenge, null),
     bestCombo: safeGet(KEYS.bestCombo, 0),
     topScores: safeGet(KEYS.topScores, []),
-    opPRs: safeGet(KEYS.opPRs, {}),  // { add: { fastestMs, bestCombo, bestSessionScore } }
-    hourPlays: safeGet(KEYS.hourPlays, {}),  // { 8: { rounds, totalScore }, 14: {...} }
+    opPRs: safeGet(KEYS.opPRs, {}),
   };
-  // ensure all 8 keys exist on skill
-  for (const op of OPS) if (typeof s.skill[op] !== "number") s.skill[op] = 0;
-  // sanitize unlocks
-  s.unlocks = s.unlocks.filter(op => OPS.includes(op));
-  if (!s.unlocks.includes("add")) s.unlocks.unshift("add");
-  if (!s.unlocks.includes("sub")) s.unlocks.splice(1, 0, "sub");
-  return s;
+  for (const op of OPS_EASY) if (typeof easy.skill[op] !== "number") easy.skill[op] = 0;
+  easy.unlocks = easy.unlocks.filter(op => OPS_EASY.includes(op));
+  if (!easy.unlocks.includes("add")) easy.unlocks.unshift("add");
+  if (!easy.unlocks.includes("sub")) easy.unlocks.splice(1, 0, "sub");
+
+  const hard = safeGet(KEYS.hard, null) || defaultHardBucket();
+  // sanitize hard
+  for (const op of OPS_HARD) if (typeof hard.skill[op] !== "number") hard.skill[op] = 0;
+  hard.unlocks = (hard.unlocks || []).filter(op => OPS_HARD.includes(op));
+  if (!hard.unlocks.includes("dot"))   hard.unlocks.unshift("dot");
+  if (!hard.unlocks.includes("magsq")) hard.unlocks.splice(1, 0, "magsq");
+  if (!hard.opMedians) hard.opMedians = defaultHardBucket().opMedians;
+  if (!hard.history) hard.history = [];
+  if (!hard.opPRs) hard.opPRs = {};
+  if (!hard.topScores) hard.topScores = [];
+
+  return {
+    mode: safeGet(KEYS.mode, "easy"),
+    modes: { easy, hard },
+    totalAnswered: safeGet(KEYS.totalAnswered, 0),
+    daily: safeGet(KEYS.daily, {}),
+    streak: safeGet(KEYS.streak, { current: 0, longest: 0, lastDate: null }),
+    audio: safeGet(KEYS.audio, true),
+    achievements: safeGet(KEYS.achievements, []),
+    dailyChallenge: safeGet(KEYS.dailyChallenge, null),
+    hourPlays: safeGet(KEYS.hourPlays, {}),
+  };
 }
 function persistAll() {
-  safeSet(KEYS.skill, state.skill);
-  safeSet(KEYS.bestScore, state.bestScore);
+  // shared
   safeSet(KEYS.totalAnswered, state.totalAnswered);
-  safeSet(KEYS.lastRadar, state.lastRadar);
-  safeSet(KEYS.history, state.history);
   safeSet(KEYS.daily, state.daily);
   safeSet(KEYS.streak, state.streak);
-  safeSet(KEYS.unlocks, state.unlocks);
   safeSet(KEYS.audio, state.audio);
-  safeSet(KEYS.opMedians, state.opMedians);
   safeSet(KEYS.achievements, state.achievements);
   safeSet(KEYS.dailyChallenge, state.dailyChallenge);
-  safeSet(KEYS.bestCombo, state.bestCombo);
-  safeSet(KEYS.topScores, state.topScores);
-  safeSet(KEYS.opPRs, state.opPRs);
   safeSet(KEYS.hourPlays, state.hourPlays);
+  safeSet(KEYS.mode, state.mode);
+  // easy mode → legacy top-level keys (forward + backward compat)
+  const e = state.modes.easy;
+  safeSet(KEYS.skill, e.skill);
+  safeSet(KEYS.bestScore, e.bestScore);
+  safeSet(KEYS.lastRadar, e.lastRadar);
+  safeSet(KEYS.history, e.history);
+  safeSet(KEYS.unlocks, e.unlocks);
+  safeSet(KEYS.opMedians, e.opMedians);
+  safeSet(KEYS.bestCombo, e.bestCombo);
+  safeSet(KEYS.topScores, e.topScores);
+  safeSet(KEYS.opPRs, e.opPRs);
+  // hard mode → single composite blob
+  safeSet(KEYS.hard, state.modes.hard);
 }
 
 // ---------- date utils ----------
@@ -1016,30 +1212,43 @@ function factorial(n) {
 }
 
 // ---------- skill / unlocks ----------
-function maxSkill() { return Math.max(...OPS.map(op => state.skill[op] || 0)); }
+function maxSkill() {
+  const b = bucket();
+  return Math.max(...ops().map(op => b.skill[op] || 0));
+}
 function nextUnlock() {
-  for (const tier of UNLOCK_TIERS) {
-    if (!state.unlocks.includes(tier.op)) return tier;
+  const b = bucket();
+  for (const tier of unlockTiers()) {
+    if (!b.unlocks.includes(tier.op)) return tier;
   }
   return null;
 }
 function applyUnlocks() {
   const newly = [];
   const m = maxSkill();
-  for (const tier of UNLOCK_TIERS) {
-    if (m >= tier.threshold && !state.unlocks.includes(tier.op)) {
-      state.unlocks.push(tier.op);
+  const b = bucket();
+  for (const tier of unlockTiers()) {
+    if (m >= tier.threshold && !b.unlocks.includes(tier.op)) {
+      b.unlocks.push(tier.op);
       newly.push(tier.op);
     }
   }
   return newly;
 }
-// Target answer time: linear up to skill 100 (1.5s → 3.5s), then grows more
-// slowly past 100 because high-skill users face harder questions and need
-// more time. Hard cap at 6.5s so even at level 1000, a slow answer still
-// can't keep climbing skill.
+// Target answer time: linear up to skill 100, then grows more slowly past 100
+// because high-skill users face harder questions and need more time. Hard
+// cap so even at level 1000, a slow answer still can't keep climbing skill.
+//
+// Hard mode is significantly more lenient because the questions inherently
+// require more calculation time (a 2×2 determinant or polynomial eval is
+// roughly 2× the cognitive load of an arithmetic op). Without this, the
+// hard-mode polygon would barely grow even with consistent practice.
 function targetTimeMs(s) {
-  if (s < 100) return (1.5 + s / 50) * 1000;
+  if (state.mode === "hard") {
+    if (s < 100) return (3.0 + s / 50) * 1000;        // 3.0s → 5.0s
+    return Math.min(8500, 5000 + (s - 100) * 6);
+  }
+  if (s < 100) return (1.5 + s / 50) * 1000;          // 1.5s → 3.5s
   return Math.min(6500, 3500 + (s - 100) * 6);
 }
 
@@ -1048,7 +1257,7 @@ function targetTimeMs(s) {
 // improvements stay visible (a recent fast streak compresses your baseline,
 // which lifts the bar — keeps the bonus earned, not free).
 function speedBonus(op, t) {
-  const med = state.opMedians[op];
+  const med = bucket().opMedians[op];
   if (!med || med <= 0) return 1.0;          // no baseline yet → no bonus
   const ratio = t / med;
   if (ratio < 0.55) return 1.5;              // ⚡ way under your norm
@@ -1057,8 +1266,9 @@ function speedBonus(op, t) {
   return 1.0;
 }
 function updateMedian(op, t) {
-  const cur = state.opMedians[op] || 0;
-  state.opMedians[op] = cur === 0 ? t : (0.92 * cur + 0.08 * t);
+  const meds = bucket().opMedians;
+  const cur = meds[op] || 0;
+  meds[op] = cur === 0 ? t : (0.92 * cur + 0.08 * t);
 }
 // combo gives a small additive bonus on top of weight*speed: every 10 in a
 // row adds +0.5 to the score of subsequent answers, capped at +2.5 (combo 50).
@@ -1069,11 +1279,15 @@ function comboBonus(combo) { return Math.min(2.5, Math.floor(combo / 10) * 0.5);
 // underlying number drives range expansion past that. Decay only at very
 // slow answers so one distracted tap doesn't roll skill back.
 function adjustSkill(op, ms) {
-  const s = state.skill[op];
+  const sk = bucket().skill;
+  const s = sk[op];
   const t = targetTimeMs(s);
-  if (ms < t * 0.55)    state.skill[op] = s + 3;
-  else if (ms < t)      state.skill[op] = s + 2;
-  else if (ms > 3 * t)  state.skill[op] = Math.max(0, s - 1);
+  // Hard mode rewards correct answers more generously per fast solve so the
+  // polygon visibly grows session-to-session despite the higher question cost.
+  const hard = state.mode === "hard";
+  if (ms < t * 0.55)    sk[op] = s + (hard ? 4 : 3);
+  else if (ms < t)      sk[op] = s + (hard ? 3 : 2);
+  else if (ms > 3 * t)  sk[op] = Math.max(0, s - 1);
 }
 
 // ---------- question generators ----------
@@ -1152,6 +1366,61 @@ function rangeSqrt(s) {
   if (s < 500) return [40,  225];
   return        [75,  350];
 }
+// Hard-mode range curves. Same shape as easy-mode: gentle early, climbing
+// well past skill 100 so advanced players keep facing harder problems.
+function rangeDot(s) {
+  if (s < 5)   return [1, 5];
+  if (s < 15)  return [1, 8];
+  if (s < 30)  return [2, 12];
+  if (s < 50)  return [3, 15];
+  if (s < 75)  return [4, 20];
+  if (s < 100) return [6, 25];
+  if (s < 150) return [10, 35];
+  if (s < 200) return [15, 50];
+  return        [25, 80];
+}
+function rangeMagsq(s) {
+  if (s < 5)   return [1, 5];
+  if (s < 15)  return [1, 8];
+  if (s < 30)  return [2, 10];
+  if (s < 50)  return [3, 12];
+  if (s < 75)  return [4, 15];
+  if (s < 100) return [5, 20];
+  if (s < 150) return [8, 30];
+  if (s < 200) return [12, 45];
+  return        [20, 75];
+}
+function rangeDet(s) {
+  if (s < 5)   return [1, 5];
+  if (s < 15)  return [1, 8];
+  if (s < 30)  return [1, 10];
+  if (s < 50)  return [2, 12];
+  if (s < 75)  return [3, 15];
+  if (s < 100) return [3, 20];
+  if (s < 150) return [5, 25];
+  if (s < 200) return [8, 35];
+  return        [12, 50];
+}
+// Polynomial / derivative share a coefficient/x-range config.
+function rangePoly(s) {
+  if (s < 10)  return { cubic: false, coefMax: 3, quadMin: 1, constMax: 5,  xMin: 1, xMax: 4 };
+  if (s < 25)  return { cubic: false, coefMax: 5, quadMin: 1, constMax: 8,  xMin: 1, xMax: 5 };
+  if (s < 45)  return { cubic: true,  coefMax: 4, quadMin: 0, constMax: 10, xMin: 1, xMax: 5 };
+  if (s < 75)  return { cubic: true,  coefMax: 6, quadMin: 0, constMax: 12, xMin: 1, xMax: 6 };
+  if (s < 100) return { cubic: true,  coefMax: 8, quadMin: 0, constMax: 15, xMin: 2, xMax: 7 };
+  if (s < 150) return { cubic: true,  coefMax: 10, quadMin: 0, constMax: 20, xMin: 2, xMax: 8 };
+  return        { cubic: true,  coefMax: 12, quadMin: 0, constMax: 25, xMin: 2, xMax: 10 };
+}
+function rangeChoose(s) {
+  if (s < 5)   return { nMin: 4,  nMax: 6,  kMax: 2 };
+  if (s < 15)  return { nMin: 5,  nMax: 8,  kMax: 3 };
+  if (s < 30)  return { nMin: 6,  nMax: 10, kMax: 4 };
+  if (s < 50)  return { nMin: 7,  nMax: 12, kMax: 5 };
+  if (s < 75)  return { nMin: 8,  nMax: 14, kMax: 5 };
+  if (s < 100) return { nMin: 10, nMax: 16, kMax: 6 };
+  if (s < 150) return { nMin: 12, nMax: 18, kMax: 6 };
+  return        { nMin: 14, nMax: 20, kMax: 7 };
+}
 // Factorials are bounded by typeable answers (10! = 3,628,800). Beyond skill
 // 200 we restrict to the larger end of the range so the user doesn't get 1!
 // or 2! as a freebie.
@@ -1164,7 +1433,7 @@ function rangeFact(s) {
 }
 
 function makeQuestion(op) {
-  const s = state.skill[op];
+  const s = bucket().skill[op];
   switch (op) {
     case "add": {
       const [lo, hi] = rangeAddSub(s);
@@ -1212,25 +1481,108 @@ function makeQuestion(op) {
       const n = randInt(lo, hi);
       return { op, display: `${n}!`, answer: factorial(n) };
     }
+
+    // ---------- hard mode generators ----------
+    // All hard-mode operators are constrained to produce strictly positive
+    // integer answers so the keypad-only input still works.
+    case "dot": {
+      const [lo, hi] = rangeDot(s);
+      const v = [randInt(lo, hi), randInt(lo, hi), randInt(lo, hi)];
+      const w = [randInt(lo, hi), randInt(lo, hi), randInt(lo, hi)];
+      const ans = v[0]*w[0] + v[1]*w[1] + v[2]*w[2];
+      return { op, display: `[${v.join(", ")}] · [${w.join(", ")}]`, answer: ans };
+    }
+    case "magsq": {
+      const [lo, hi] = rangeMagsq(s);
+      const v = [randInt(lo, hi), randInt(lo, hi), randInt(lo, hi)];
+      const ans = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
+      return { op, display: `|[${v.join(", ")}]|<sup>2</sup>`, answer: ans };
+    }
+    case "det": {
+      const [lo, hi] = rangeDet(s);
+      // Keep retrying until ad − bc > 0; bias to make ad large.
+      let a, b, c, d, ans, tries = 0;
+      do {
+        a = randInt(lo, hi); d = randInt(lo, hi);
+        b = randInt(lo, hi); c = randInt(lo, hi);
+        ans = a*d - b*c;
+        tries++;
+      } while (ans <= 0 && tries < 30);
+      if (ans <= 0) { a = hi; d = hi; b = lo; c = lo; ans = a*d - b*c; }
+      return {
+        op,
+        display: `det <span class="m22"><span>${a}</span><span>${b}</span><span>${c}</span><span>${d}</span></span>`,
+        answer: ans
+      };
+    }
+    case "poly": {
+      const cfg = rangePoly(s);
+      // f(x) = a·x³ + b·x² + c·x + d, all coefficients ≥ 0, x ≥ 1 → f(x) > 0
+      const x = randInt(cfg.xMin, cfg.xMax);
+      const a3 = cfg.cubic ? randInt(0, cfg.coefMax) : 0;
+      const a2 = randInt(cfg.quadMin, cfg.coefMax);
+      const a1 = randInt(0, cfg.coefMax);
+      const a0 = randInt(0, cfg.constMax);
+      const ans = a3*x*x*x + a2*x*x + a1*x + a0;
+      const parts = [];
+      if (a3 > 0) parts.push(a3 === 1 ? `x<sup>3</sup>` : `${a3}x<sup>3</sup>`);
+      if (a2 > 0) parts.push(a2 === 1 ? `x<sup>2</sup>` : `${a2}x<sup>2</sup>`);
+      if (a1 > 0) parts.push(a1 === 1 ? `x` : `${a1}x`);
+      if (a0 > 0) parts.push(`${a0}`);
+      const expr = parts.length ? parts.join(" + ") : "0";
+      return { op, display: `${expr} | x=${x}`, answer: ans };
+    }
+    case "deriv": {
+      const cfg = rangePoly(s);
+      // f(x) = a·x³ + b·x² + c·x + d → f'(x) = 3a·x² + 2b·x + c
+      const x = randInt(cfg.xMin, cfg.xMax);
+      const a3 = cfg.cubic ? randInt(0, cfg.coefMax) : 0;
+      const a2 = randInt(cfg.quadMin, cfg.coefMax);
+      const a1 = randInt(1, cfg.coefMax);
+      const a0 = randInt(0, cfg.constMax);
+      const ans = 3*a3*x*x + 2*a2*x + a1;
+      const parts = [];
+      if (a3 > 0) parts.push(a3 === 1 ? `x<sup>3</sup>` : `${a3}x<sup>3</sup>`);
+      if (a2 > 0) parts.push(a2 === 1 ? `x<sup>2</sup>` : `${a2}x<sup>2</sup>`);
+      if (a1 > 0) parts.push(a1 === 1 ? `x` : `${a1}x`);
+      if (a0 > 0) parts.push(`${a0}`);
+      const expr = parts.length ? parts.join(" + ") : "0";
+      return { op, display: `(${expr})′ | x=${x}`, answer: ans };
+    }
+    case "choose": {
+      const cfg = rangeChoose(s);
+      const n = randInt(cfg.nMin, cfg.nMax);
+      // pick k in [2, n-2] for non-trivial answers when n permits
+      const kMax = Math.min(cfg.kMax, n - 1);
+      const kMin = Math.min(2, kMax);
+      const k = randInt(kMin, kMax);
+      // C(n,k) = n! / (k! (n-k)!)
+      const ans = (() => {
+        let num = 1, den = 1;
+        const kk = Math.min(k, n - k);
+        for (let i = 0; i < kk; i++) { num *= (n - i); den *= (i + 1); }
+        return num / den;
+      })();
+      return { op, display: `C(${n}, ${k})`, answer: ans };
+    }
   }
 }
 
 function pickOp() {
-  if (state.unlocks.length === 1) return state.unlocks[0];
+  const b = bucket();
+  if (b.unlocks.length === 1) return b.unlocks[0];
   // 40% uniform (so strong ops still rotate in regularly);
   // 60% weighted toward weak, but gentler curve than before so a high-skill
   // op doesn't disappear from rotation entirely.
-  if (Math.random() < 0.4) return pick(state.unlocks);
-  // skill clamped to 100 for the bias curve so a level-300 op doesn't
-  // approach zero weight and disappear from rotation entirely.
-  const weights = state.unlocks.map(op => 1 / (1 + Math.min(100, state.skill[op]) / 40));
-  const total = weights.reduce((a, b) => a + b, 0);
+  if (Math.random() < 0.4) return pick(b.unlocks);
+  const weights = b.unlocks.map(op => 1 / (1 + Math.min(100, b.skill[op]) / 40));
+  const total = weights.reduce((a, x) => a + x, 0);
   let r = Math.random() * total;
-  for (let i = 0; i < state.unlocks.length; i++) {
+  for (let i = 0; i < b.unlocks.length; i++) {
     r -= weights[i];
-    if (r < 0) return state.unlocks[i];
+    if (r < 0) return b.unlocks[i];
   }
-  return state.unlocks[state.unlocks.length - 1];
+  return b.unlocks[b.unlocks.length - 1];
 }
 
 // ---------- single scalar skill summary ----------
@@ -1247,17 +1599,20 @@ function pickOp() {
 // monotonically, growing any single skill is always rewarded, and balanced
 // growth is still favoured (because squaring rewards spreading effort).
 // Renamed `polygonArea` left as-is for callsite stability.
-function polygonArea(skill) {
+function polygonArea(skill, opsArr) {
   // clamp each spoke to 100 for the area metric so the chart still maxes at
   // 100 even after skills grow into the hundreds — past that, growth is
   // expressed via harder questions rather than a runaway chart.
-  const r = OPS.map(op => Math.min(100, skill[op] || 0));
+  const oo = opsArr || ops();
+  const r = oo.map(op => Math.min(100, skill[op] || 0));
   return r.reduce((s, v) => s + v * v, 0);
 }
-const A_MAX = 8 * 100 * 100; // 80000 — all 8 ops at 100
-function areaNorm(skill) {
-  return Math.round((polygonArea(skill) / A_MAX) * 1000) / 10; // 0–100, 1 dp
+function areaNormFor(skill, opsArr) {
+  const oo = opsArr || ops();
+  const max = oo.length * 100 * 100;
+  return Math.round((polygonArea(skill, oo) / max) * 1000) / 10; // 0–100, 1 dp
 }
+function areaNorm(skill) { return areaNormFor(skill, ops()); }
 
 // ---------- audio (subtle WebAudio tick) ----------
 // Audio is gated by state.audio (toggled via the footer button). When ON we
@@ -1337,20 +1692,70 @@ function richTick(rush, opts) {
 }
 
 // ---------- radar SVG ----------
-function renderRadar(svgEl, skillNow, skillPrev) {
+// Now mode-aware: pass `opts.mode` ("easy" | "hard") to render the radar with
+// the appropriate ops/labels/unlocks/next-unlock. Defaults to current mode.
+//
+// Visual layers (back → front):
+//   1. concentric rings (inner ones brighter)
+//   2. spokes
+//   3. operator labels
+//   4. previous-session ghost polygon (dashed)
+//   5. soft blurred glow polygon (creates the halo)
+//   6. main polygon with radial-gradient fill + crisp accent stroke
+//   7. layered vertex dots (halo gradient + bright core + bright pinpoint)
+function renderRadar(svgEl, skillNow, skillPrev, opts) {
+  const mode = (opts && opts.mode) || state.mode;
+  const opsArr  = mode === "hard" ? OPS_HARD       : OPS_EASY;
+  const labels  = mode === "hard" ? OP_LABEL_HARD  : OP_LABEL_EASY;
+  const tiers   = mode === "hard" ? UNLOCK_TIERS_HARD : UNLOCK_TIERS_EASY;
+  const unlocks = state.modes[mode].unlocks;
+  let next = null;
+  for (const tier of tiers) {
+    if (!unlocks.includes(tier.op)) { next = tier; break; }
+  }
+
+  // Mode-specific colour palette — single accent throughout.
+  const accent  = mode === "hard" ? "#22d3ee" : "#f97316";
+
+  // Per-svg unique gradient/filter ids so multiple radars on the page don't
+  // collide (defs are looked up by document-scoped #id).
+  const uid = (svgEl.id || ("r" + Math.random().toString(36).slice(2, 7))).replace(/[^a-z0-9_-]/gi, "");
+  const gradId = `pg-${uid}`;
+  const haloId = `vh-${uid}`;
+  const glowId = `pgw-${uid}`;
+
   const w = 320, h = 320;
   const cx = w / 2, cy = h / 2;
   const R = 110;
-  const n = OPS.length;
-  let g = "";
+  const n = opsArr.length;
 
-  // rings
-  for (const ringR of [R * 0.25, R * 0.5, R * 0.75, R]) {
-    g += `<circle class="ring" cx="${cx}" cy="${cy}" r="${ringR}" />`;
+  let g = `<defs>
+    <radialGradient id="${gradId}" cx="50%" cy="50%" r="60%">
+      <stop offset="0%"   stop-color="${accent}" stop-opacity="0.45"/>
+      <stop offset="60%"  stop-color="${accent}" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="${accent}" stop-opacity="0.05"/>
+    </radialGradient>
+    <radialGradient id="${haloId}" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="${accent}" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="${glowId}" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4.5"/>
+    </filter>
+  </defs>`;
+
+  // Rings — inner ones brighter so the centre reads as "hot".
+  const ringDefs = [
+    { r: R * 0.25, op: 0.35 },
+    { r: R * 0.50, op: 0.25 },
+    { r: R * 0.75, op: 0.18 },
+    { r: R,        op: 0.13 },
+  ];
+  for (const ring of ringDefs) {
+    g += `<circle cx="${cx}" cy="${cy}" r="${ring.r}" fill="none" stroke="#21262d" stroke-opacity="${ring.op}" stroke-width="1"/>`;
   }
 
-  // spokes + labels
-  const next = nextUnlock();
+  // Spokes + labels.
   for (let i = 0; i < n; i++) {
     const a = -Math.PI / 2 + (i / n) * 2 * Math.PI;
     const x = cx + R * Math.cos(a);
@@ -1358,46 +1763,45 @@ function renderRadar(svgEl, skillNow, skillPrev) {
     g += `<line class="spoke" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" />`;
     const lx = cx + (R + 22) * Math.cos(a);
     const ly = cy + (R + 22) * Math.sin(a);
-    const op = OPS[i];
-    const unlocked = state.unlocks.includes(op);
+    const op = opsArr[i];
+    const unlocked = unlocks.includes(op);
     let cls = "label";
     if (!unlocked) cls += (next && next.op === op) ? " next" : " locked";
-    const label = OP_LABEL[op];
-    g += `<text class="${cls}" x="${lx}" y="${ly}">${label}</text>`;
+    g += `<text class="${cls}" x="${lx}" y="${ly}">${labels[op]}</text>`;
   }
 
-  // radius is clamped to R (skill 100) — past 100, the polygon vertex stays
-  // at the outer ring. Continued progression is expressed via harder
-  // questions, not a runaway radar.
   const radarRadius = (sv) => Math.min(100, sv || 0) / 100 * R;
-
-  // previous polygon (ghost)
-  if (skillPrev) {
-    let pts = "";
+  const polyPoints = (skill) => {
+    let s = "";
     for (let i = 0; i < n; i++) {
       const a = -Math.PI / 2 + (i / n) * 2 * Math.PI;
-      const v = radarRadius(skillPrev[OPS[i]]);
-      pts += `${cx + v * Math.cos(a)},${cy + v * Math.sin(a)} `;
+      const v = radarRadius(skill[opsArr[i]]);
+      s += `${cx + v * Math.cos(a)},${cy + v * Math.sin(a)} `;
     }
-    g += `<polygon class="poly-prev" points="${pts.trim()}" />`;
+    return s.trim();
+  };
+
+  // Previous-session ghost (dashed outline only).
+  if (skillPrev) {
+    g += `<polygon class="poly-prev" points="${polyPoints(skillPrev)}" />`;
   }
 
-  // current polygon
-  let pts = "";
-  for (let i = 0; i < n; i++) {
-    const a = -Math.PI / 2 + (i / n) * 2 * Math.PI;
-    const v = radarRadius(skillNow[OPS[i]]);
-    pts += `${cx + v * Math.cos(a)},${cy + v * Math.sin(a)} `;
-  }
-  g += `<polygon class="poly-now" points="${pts.trim()}" />`;
+  const pts = polyPoints(skillNow);
+  // Soft outer glow — blurred fill behind everything, gives the halo bloom.
+  g += `<polygon class="poly-aura" points="${pts}" fill="${accent}" opacity="0.22" filter="url(#${glowId})" stroke="none"/>`;
+  // Main polygon — radial gradient fill + crisp stroke.
+  g += `<polygon class="poly-now" points="${pts}" fill="url(#${gradId})" stroke="${accent}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
 
-  // vertices
+  // Vertex points — halo + core + pinpoint highlight.
   for (let i = 0; i < n; i++) {
-    const op = OPS[i];
-    if (!state.unlocks.includes(op) || (skillNow[op] || 0) === 0) continue;
+    const op = opsArr[i];
+    if (!unlocks.includes(op) || (skillNow[op] || 0) === 0) continue;
     const a = -Math.PI / 2 + (i / n) * 2 * Math.PI;
     const v = radarRadius(skillNow[op]);
-    g += `<circle class="vertex" cx="${cx + v * Math.cos(a)}" cy="${cy + v * Math.sin(a)}" r="3" />`;
+    const vx = cx + v * Math.cos(a);
+    const vy = cy + v * Math.sin(a);
+    g += `<circle cx="${vx}" cy="${vy}" r="10" fill="url(#${haloId})"/>`;
+    g += `<circle cx="${vx}" cy="${vy}" r="3.5" fill="${accent}"/>`;
   }
 
   svgEl.innerHTML = g;
@@ -1555,20 +1959,27 @@ function renderHeatmap(container) {
 }
 
 // ---------- pool description ----------
-function poolDescription() {
-  const opsTxt = state.unlocks.map(op => OP_LABEL[op]).join(" ");
-  const next = nextUnlock();
-  const m = maxSkill();
+function poolDescription(modeOverride) {
+  const mode = modeOverride || state.mode;
+  const b = state.modes[mode];
+  const opsArr = mode === "hard" ? OPS_HARD : OPS_EASY;
+  const labels = mode === "hard" ? OP_LABEL_HARD : OP_LABEL_EASY;
+  const names  = mode === "hard" ? OP_NAME_HARD : OP_NAME_EASY;
+  const tiers  = mode === "hard" ? UNLOCK_TIERS_HARD : UNLOCK_TIERS_EASY;
+  const opsTxt = b.unlocks.map(op => labels[op]).join(" ");
+  let next = null;
+  for (const tier of tiers) {
+    if (!b.unlocks.includes(tier.op)) { next = tier; break; }
+  }
+  const m = Math.max(...opsArr.map(o => b.skill[o] || 0));
   let nx = "";
-  if (next) nx = ` · next unlock: ${OP_LABEL[next.op]} at ${next.threshold} (you: ${m})`;
-  // surface the weakest operator as a focus suggestion when there's
-  // meaningful imbalance (encourages targeted practice without forcing it)
+  if (next) nx = ` · next unlock: ${labels[next.op]} at ${next.threshold} (you: ${m})`;
   let focus = "";
-  if (state.unlocks.length >= 2) {
-    const skills = state.unlocks.map(o => ({ op: o, s: state.skill[o] }));
-    const min = skills.reduce((a, b) => a.s < b.s ? a : b);
-    const avg = skills.reduce((a, b) => a + b.s, 0) / skills.length;
-    if (avg - min.s >= 8) focus = ` · weakest: ${OP_NAME[min.op]} (${min.s})`;
+  if (b.unlocks.length >= 2) {
+    const skills = b.unlocks.map(o => ({ op: o, s: b.skill[o] }));
+    const min = skills.reduce((a, x) => a.s < x.s ? a : x);
+    const avg = skills.reduce((a, x) => a + x.s, 0) / skills.length;
+    if (avg - min.s >= 8) focus = ` · weakest: ${names[min.op]} (${min.s})`;
   }
   return `${opsTxt}${nx}${focus}`;
 }
@@ -1604,20 +2015,19 @@ function adjustStreakOnLoad() {
 // Insert a session score into the top-10 list. Returns the rank (1-based) if
 // it made the list, otherwise null.
 function recordTopScore(score, date) {
+  const b = bucket();
   const entry = { score, date, fresh: true };
-  // clear previous "fresh" flags so only the just-added one is highlighted
-  for (const e of state.topScores) delete e.fresh;
-  const list = state.topScores.slice();
+  for (const e of b.topScores) delete e.fresh;
+  const list = b.topScores.slice();
   list.push(entry);
-  list.sort((a, b) => b.score - a.score);
-  state.topScores = list.slice(0, 10);
-  const rank = state.topScores.indexOf(entry) + 1;
+  list.sort((a, x) => x.score - a.score);
+  b.topScores = list.slice(0, 10);
+  const rank = b.topScores.indexOf(entry) + 1;
   return rank > 0 ? rank : null;
 }
 
 function updateOpPRs(session) {
-  // Track fastest single answer, longest in-row run, and best per-op session
-  // score for each operator the user touched this round.
+  const b = bucket();
   const byOp = {};
   let runOp = null, run = 0;
   const runByOp = {};
@@ -1631,8 +2041,8 @@ function updateOpPRs(session) {
     runByOp[r.op] = Math.max(runByOp[r.op] || 0, run);
   }
   for (const op of Object.keys(byOp)) {
-    if (!state.opPRs[op]) state.opPRs[op] = { fastestMs: Infinity, bestRun: 0, bestSessionScore: 0 };
-    const pr = state.opPRs[op];
+    if (!b.opPRs[op]) b.opPRs[op] = { fastestMs: Infinity, bestRun: 0, bestSessionScore: 0 };
+    const pr = b.opPRs[op];
     if (byOp[op].fastest < pr.fastestMs) pr.fastestMs = byOp[op].fastest;
     if ((runByOp[op] || 0) > pr.bestRun) pr.bestRun = runByOp[op];
     if (byOp[op].scoreSum > pr.bestSessionScore) pr.bestSessionScore = byOp[op].scoreSum;
@@ -1670,7 +2080,7 @@ function fmtHour(h) {
 // Use a stable median × 1.05 over the user's last 5 sessions as tomorrow's
 // reach goal. Returns null until there's enough history to be meaningful.
 function tomorrowTargetScore() {
-  const recent = state.history.slice(-5).map(h => h.score).filter(s => s > 0);
+  const recent = bucket().history.slice(-5).map(h => h.score).filter(s => s > 0);
   if (recent.length < 3) return null;
   const sorted = recent.slice().sort((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)];
@@ -1686,24 +2096,24 @@ function comebackText() {
 }
 
 // Pick one fun-fact line for the home dashboard. Variable across sessions.
+// Reads from the active mode's bucket.
 function pickHomeInsight() {
+  const b = bucket();
+  const names = opNames();
   const pool = [];
-  if (state.topScores.length > 0) {
-    pool.push(`peak score: ${fmtScore(state.topScores[0].score)} on ${state.topScores[0].date}`);
+  if (b.topScores.length > 0) {
+    pool.push(`peak score: ${fmtScore(b.topScores[0].score)} on ${b.topScores[0].date}`);
   }
   const bh = bestHour();
   if (bh) pool.push(`you score best around ${fmtHour(bh.h)}`);
-  // per-op records
-  const opEntries = Object.entries(state.opPRs);
-  for (const [op, prs] of opEntries) {
+  for (const [op, prs] of Object.entries(b.opPRs)) {
     if (prs.fastestMs && isFinite(prs.fastestMs)) {
-      pool.push(`fastest ${OP_NAME[op]}: ${(prs.fastestMs/1000).toFixed(2)}s`);
+      pool.push(`fastest ${names[op]}: ${(prs.fastestMs/1000).toFixed(2)}s`);
     }
     if (prs.bestRun && prs.bestRun >= 4) {
-      pool.push(`longest ${OP_NAME[op]} streak: ${prs.bestRun} in a row`);
+      pool.push(`longest ${names[op]} streak: ${prs.bestRun} in a row`);
     }
   }
-  // total investment
   const activeDays = Object.keys(state.daily).length;
   if (state.totalAnswered >= 50 && activeDays >= 1) {
     pool.push(`${state.totalAnswered.toLocaleString()} questions answered across ${activeDays} day${activeDays === 1 ? "" : "s"}`);
@@ -1721,7 +2131,7 @@ function buildInsight(session) {
   }
   if (responses.length === 1) {
     const r = responses[0];
-    return `first solve: ${OP_NAME[r.op]} in ${(r.t/1000).toFixed(2)}s. keep going to build a baseline.`;
+    return `first solve: ${opNames()[r.op]} in ${(r.t/1000).toFixed(2)}s. keep going to build a baseline.`;
   }
   // hot finish — last 3 answers were each fast (sub-target)
   if (responses.length >= 3) {
@@ -1745,7 +2155,7 @@ function buildInsight(session) {
   if (opAvgs.length >= 2) {
     opAvgs.sort((a, b) => a.avg - b.avg);
     const fast = opAvgs[0], slow = opAvgs[opAvgs.length - 1];
-    lines.push(`fastest: ${OP_NAME[fast.op]} (${(fast.avg/1000).toFixed(2)}s avg) · slowest: ${OP_NAME[slow.op]} (${(slow.avg/1000).toFixed(2)}s)`);
+    lines.push(`fastest: ${opNames()[fast.op]} (${(fast.avg/1000).toFixed(2)}s avg) · slowest: ${opNames()[slow.op]} (${(slow.avg/1000).toFixed(2)}s)`);
   }
   // best streak of same op
   let runOp = null, run = 0, bestRunOp = null, bestRun = 0;
@@ -1754,18 +2164,19 @@ function buildInsight(session) {
     else { runOp = r.op; run = 1; }
     if (run > bestRun) { bestRun = run; bestRunOp = runOp; }
   }
-  if (bestRun >= 4) lines.push(`${bestRun} ${OP_NAME[bestRunOp]} in a row`);
+  if (bestRun >= 4) lines.push(`${bestRun} ${opNames()[bestRunOp]} in a row`);
   // skill jumps
   const climbed = Object.entries(perOpDelta).filter(([, d]) => d >= 2);
   if (climbed.length) {
     climbed.sort((a, b) => b[1] - a[1]);
     const [op, d] = climbed[0];
-    lines.push(`${OP_NAME[op]} skill +${d}`);
+    lines.push(`${opNames()[op]} skill +${d}`);
   }
   // overall area movement
-  if (state.history.length >= 2) {
-    const last = state.history[state.history.length - 1];
-    const prev = state.history[state.history.length - 2];
+  if (bucket().history.length >= 2) {
+    const hist = bucket().history;
+    const last = hist[hist.length - 1];
+    const prev = hist[hist.length - 2];
     const delta = last.areaNorm - prev.areaNorm;
     if (Math.abs(delta) >= 0.1) {
       const sign = delta > 0 ? "+" : "";
@@ -1781,7 +2192,7 @@ function buildInsight(session) {
   // hardest single problem solved
   const hardest = responses.reduce((acc, r) => (!acc || r.weight > acc.weight) ? r : acc, null);
   if (hardest && hardest.weight >= 4) {
-    lines.push(`toughest solve: ${OP_NAME[hardest.op]} (worth ${hardest.weight.toFixed(1)})`);
+    lines.push(`toughest solve: ${opNames()[hardest.op]} (worth ${hardest.weight.toFixed(1)})`);
   }
   // average difficulty
   if (responses.length >= 6) {
@@ -1814,20 +2225,35 @@ function setScreen(name) {
 }
 
 function renderHome() {
-  document.getElementById("stat-best").textContent = fmtScore(state.bestScore);
+  // Easy mode panels (always visible).
+  document.getElementById("stat-best").textContent = fmtScore(state.modes.easy.bestScore);
   document.getElementById("stat-streak").textContent = state.streak.current;
   document.getElementById("stat-longest").textContent = state.streak.longest;
   document.getElementById("stat-lifetime").textContent = state.totalAnswered.toLocaleString();
-  document.getElementById("pool-line").textContent = poolDescription();
+  document.getElementById("pool-line").textContent = poolDescription("easy");
   document.getElementById("audio-toggle").textContent = `audio: ${state.audio ? "on" : "off"}`;
-  renderRadar(document.getElementById("radar"), state.skill, null);
-  renderTrend(document.getElementById("trend"), state.history);
+  document.getElementById("hard-toggle").textContent = `hard mode: ${state.mode === "hard" ? "on" : "off"}`;
+  renderRadar(document.getElementById("radar"), state.modes.easy.skill, null, { mode: "easy" });
+  renderTrend(document.getElementById("trend"), state.modes.easy.history);
   renderHeatmap(document.getElementById("heatmap"));
-  renderVelocity();
+  renderVelocity("easy", document.getElementById("velocity"));
   renderDailyChallenge();
   renderHomeInsight();
   renderComeback();
-  renderTopScores();
+  renderTopScores("easy");
+  // Hard mode panels (only when toggle is on).
+  const hardOn = state.mode === "hard";
+  document.getElementById("hard-section").hidden = !hardOn;
+  document.getElementById("active-mode-pill").textContent = hardOn ? "hard" : "easy";
+  document.getElementById("active-mode-pill").classList.toggle("hard", hardOn);
+  if (hardOn) {
+    document.getElementById("pool-line-hard").textContent = poolDescription("hard");
+    document.getElementById("stat-best-hard").textContent = fmtScore(state.modes.hard.bestScore);
+    renderRadar(document.getElementById("radar-hard"), state.modes.hard.skill, null, { mode: "hard" });
+    renderTrend(document.getElementById("trend-hard"), state.modes.hard.history);
+    renderVelocity("hard", document.getElementById("velocity-hard"));
+    renderTopScores("hard");
+  }
 }
 
 function renderHomeInsight() {
@@ -1842,23 +2268,29 @@ function renderComeback() {
   el.textContent = txt;
 }
 
-function renderTopScores() {
-  const ol = document.getElementById("top-scores");
-  const panel = document.getElementById("top-scores-panel");
-  if (!state.topScores.length) { panel.hidden = true; return; }
+function renderTopScores(mode) {
+  const m = mode || "easy";
+  const olId = m === "hard" ? "top-scores-hard" : "top-scores";
+  const panelId = m === "hard" ? "top-scores-panel-hard" : "top-scores-panel";
+  const list = state.modes[m].topScores;
+  const ol = document.getElementById(olId);
+  const panel = document.getElementById(panelId);
+  if (!list.length) { panel.hidden = true; return; }
   panel.hidden = false;
   ol.innerHTML = "";
-  state.topScores.forEach((entry, i) => {
+  list.forEach((entry, i) => {
     const cls = i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
     const fresh = entry.fresh ? "fresh" : "";
     ol.innerHTML += `<li class="${fresh}"><span class="rank">${i+1}</span><span class="score ${cls}">${fmtScore(entry.score)}</span><span class="date">${entry.date}</span></li>`;
   });
 }
 
-function renderVelocity() {
-  const el = document.getElementById("velocity");
-  const h = state.history;
-  if (h.length < 3) { el.innerHTML = ""; return; }
+function renderVelocity(mode, el) {
+  const m = mode || "easy";
+  const target = el || document.getElementById("velocity");
+  if (!target) return;
+  const h = state.modes[m].history;
+  if (h.length < 3) { target.innerHTML = ""; return; }
   const window = h.slice(-7);
   const first = window[0].areaNorm;
   const last = window[window.length - 1].areaNorm;
@@ -1866,7 +2298,7 @@ function renderVelocity() {
   const arrow = slope > 0.1 ? "▲" : slope < -0.1 ? "▼" : "·";
   const cls = slope > 0.1 ? "up" : slope < -0.1 ? "down" : "";
   const sign = slope >= 0 ? "+" : "";
-  el.innerHTML = `<span class="${cls}">${arrow}</span> trending ${sign}${slope.toFixed(2)} skill area / session over last ${window.length}`;
+  target.innerHTML = `<span class="${cls}">${arrow}</span> trending ${sign}${slope.toFixed(2)} skill area / session over last ${window.length}`;
 }
 
 function renderDailyChallenge() {
@@ -1887,14 +2319,16 @@ function startRound(durationOverride) {
   ensureAudioCtx();
   if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
 
+  const b = bucket();
   session = {
+    mode: state.mode,
     score: 0,
     displayedScore: 0,
     scoreAnimId: null,
     responses: [],
-    skillBefore: { ...state.skill },
-    unlocksBefore: [...state.unlocks],
-    bestBefore: state.bestScore,
+    skillBefore: { ...b.skill },
+    unlocksBefore: [...b.unlocks],
+    bestBefore: b.bestScore,
     questionStart: 0,
     timeLeft: durationOverride || ROUND_SECONDS,
     timerId: null,
@@ -1937,9 +2371,10 @@ function updateTimer() {
 
 function updateScore(immediate) {
   const el = document.getElementById("score");
+  const best = bucket().bestScore;
   el.classList.remove("near", "beat");
-  if (session.score > state.bestScore) el.classList.add("beat");
-  else if (state.bestScore > 0 && session.score >= state.bestScore * 0.85) el.classList.add("near");
+  if (session.score > best) el.classList.add("beat");
+  else if (best > 0 && session.score >= best * 0.85) el.classList.add("near");
   // animate the displayed number from current displayedScore → session.score
   if (immediate) {
     session.displayedScore = session.score;
@@ -1982,9 +2417,10 @@ function updateCombo() {
 function updatePbBar() {
   const el = document.getElementById("pb-bar");
   const wrap = document.getElementById("pb-bar-wrap");
-  if (state.bestScore <= 0) { wrap.style.opacity = 0.3; el.style.width = "0%"; return; }
+  const best = bucket().bestScore;
+  if (best <= 0) { wrap.style.opacity = 0.3; el.style.width = "0%"; return; }
   wrap.style.opacity = 1;
-  const pct = Math.min(100, (session.score / state.bestScore) * 100);
+  const pct = Math.min(100, (session.score / best) * 100);
   el.style.width = pct.toFixed(1) + "%";
 }
 
@@ -2058,20 +2494,21 @@ function onAnswerInput() {
   const w = questionWeight(session.current);
   const sb = speedBonus(op, elapsed);
   // combo: increment unless answer was painfully slow (>3× target)
-  const slowThreshold = 3 * targetTimeMs(state.skill[op]);
+  const slowThreshold = 3 * targetTimeMs(bucket().skill[op]);
   if (elapsed > slowThreshold) session.combo = 0;
   else session.combo += 1;
   session.bestCombo = Math.max(session.bestCombo, session.combo);
-  state.bestCombo = Math.max(state.bestCombo, session.combo);
+  bucket().bestCombo = Math.max(bucket().bestCombo, session.combo);
   const cb = comboBonus(session.combo);
   const challengeMul = session.current.isChallenge ? 2 : 1;
   const earned = (w * sb + cb) * challengeMul;
 
-  // Rush factor — chain-based, gated at 2.3s per answer. The longer you
-  // sustain sub-2.3s answers in a row, the higher rush climbs. One slow
-  // answer (≥ 2.3s) breaks the chain and rush resets. Reaches max at an
-  // 8-in-a-row sub-2.3s streak; harmonics kick in at chain 3 and 6.
-  const FLOW_GATE_MS = 2300;
+  // Rush factor — chain-based, gated per answer. The longer you sustain
+  // sub-gate answers in a row, the higher rush climbs. One slow answer
+  // breaks the chain and rush resets. Reaches max at an 8-in-a-row chain;
+  // harmonics kick in at chain 3 and 6. Hard mode uses a wider gate
+  // because the questions take more time to solve.
+  const FLOW_GATE_MS = state.mode === "hard" ? 4000 : 2400;
   if (elapsed < FLOW_GATE_MS) {
     session.flowChain = (session.flowChain || 0) + 1;
   } else {
@@ -2120,30 +2557,32 @@ function endRound() {
   setRushGlow(0);
   tick(440);
 
-  // commit per-op deltas
+  const b = bucket();
+
+  // commit per-op deltas (only over THIS mode's operators)
   const perOpDelta = {};
-  for (const op of OPS) perOpDelta[op] = (state.skill[op] || 0) - (session.skillBefore[op] || 0);
+  for (const op of ops()) perOpDelta[op] = (b.skill[op] || 0) - (session.skillBefore[op] || 0);
 
   // newly unlocked
-  const newlyUnlocked = state.unlocks.filter(o => !session.unlocksBefore.includes(o));
+  const newlyUnlocked = b.unlocks.filter(o => !session.unlocksBefore.includes(o));
 
   // best score
-  const newBest = session.score > state.bestScore;
-  if (newBest) state.bestScore = session.score;
+  const newBest = session.score > b.bestScore;
+  if (newBest) b.bestScore = session.score;
 
   // history
   const today = todayKey();
   const sessionAvgMs = session.responses.length
     ? session.responses.reduce((a, r) => a + r.t, 0) / session.responses.length
     : null;
-  state.history.push({
+  b.history.push({
     date: today,
-    sessionIdx: state.history.length + 1,
+    sessionIdx: b.history.length + 1,
     score: session.score,
-    areaNorm: areaNorm(state.skill),
+    areaNorm: areaNorm(b.skill),
     avgMs: sessionAvgMs,
   });
-  if (state.history.length > 500) state.history = state.history.slice(-500);
+  if (b.history.length > 500) b.history = b.history.slice(-500);
 
   // daily
   if (!state.daily[today]) state.daily[today] = { rounds: 0, best: 0, totalCorrect: 0 };
@@ -2172,8 +2611,7 @@ function endRound() {
 
   // ghost = the skill snapshot at start of *this* round (so end-screen radar shows growth this session)
   const ghost = session.skillBefore;
-  // for next session's home, we want the radar's ghost overlay to reflect the most recent session's start (matches plan: "previous session's polygon")
-  state.lastRadar = ghost;
+  b.lastRadar = ghost;
 
   // mini-achievements (must run after all stats are committed)
   const newAchievements = checkMilestones();
@@ -2195,10 +2633,11 @@ function endRound() {
     `${correctCount} correct in ${dur}${tag} · avg ${avg}s · avg difficulty ${avgWeight}`;
   document.getElementById("new-best").hidden = !newBest;
 
+  const labels = opLabels();
   const ub = document.getElementById("unlock-banner");
   if (newlyUnlocked.length) {
     ub.hidden = false;
-    ub.textContent = newlyUnlocked.map(o => `${OP_LABEL[o]} now in rotation`).join(" · ");
+    ub.textContent = newlyUnlocked.map(o => `${labels[o]} now in rotation`).join(" · ");
   } else {
     ub.hidden = true;
   }
@@ -2206,7 +2645,7 @@ function endRound() {
   // deltas — show only ops whose skill actually changed
   const dEl = document.getElementById("deltas");
   dEl.innerHTML = "";
-  const changed = state.unlocks.filter(op => (perOpDelta[op] || 0) !== 0);
+  const changed = b.unlocks.filter(op => (perOpDelta[op] || 0) !== 0);
   if (changed.length === 0) {
     dEl.innerHTML = `<span class="d">no skill changes this round</span>`;
   } else {
@@ -2214,7 +2653,7 @@ function endRound() {
       const d = perOpDelta[op];
       const sign = d > 0 ? `+${d}` : `−${Math.abs(d)}`;
       const cls = d > 0 ? "pos" : "neg";
-      dEl.innerHTML += `<span class="d ${cls}">${OP_LABEL[op]} ${sign}</span>`;
+      dEl.innerHTML += `<span class="d ${cls}">${labels[op]} ${sign}</span>`;
     }
   }
 
@@ -2244,7 +2683,7 @@ function endRound() {
   });
 
   // end-screen radar with ghost = pre-session skill
-  renderRadar(document.getElementById("radar-end"), state.skill, session.skillBefore);
+  renderRadar(document.getElementById("radar-end"), b.skill, session.skillBefore, { mode: session.mode });
 
   // tomorrow target line — small primer for next-day intent
   const tt = tomorrowTargetScore();
@@ -2325,6 +2764,12 @@ document.getElementById("audio-toggle").addEventListener("click", () => {
   safeSet(KEYS.audio, state.audio);
   document.getElementById("audio-toggle").textContent = `audio: ${state.audio ? "on" : "off"}`;
   if (state.audio) tick(880);
+});
+
+document.getElementById("hard-toggle").addEventListener("click", () => {
+  state.mode = state.mode === "hard" ? "easy" : "hard";
+  safeSet(KEYS.mode, state.mode);
+  renderHome();
 });
 
 document.getElementById("reset-btn").addEventListener("click", () => {
