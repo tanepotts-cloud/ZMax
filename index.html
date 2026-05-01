@@ -202,7 +202,8 @@
   .radar .spoke { stroke: var(--grid-line); stroke-width: 1; }
   .radar .label {
     fill: var(--muted);
-    font-size: 12px;
+    font-size: 14px;
+    font-weight: 500;
     text-anchor: middle;
     dominant-baseline: middle;
     font-variant-numeric: tabular-nums;
@@ -213,9 +214,9 @@
   .radar .poly-prev { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.55; }
   .radar .vertex { fill: var(--accent); }
 
-  /* Trend chart */
+  /* Trend chart — dynamic viewBox sized in actual pixels so text never stretches */
   .trend-wrap { padding: 4px 0; }
-  svg.trend { display: block; width: 100%; height: 140px; }
+  svg.trend { display: block; width: 100%; height: 180px; }
   .trend .gridline { stroke: var(--grid-line); stroke-width: 1; stroke-dasharray: 2 4; }
   .trend .axis { stroke: var(--grid-line); stroke-width: 1; }
   .trend .line { fill: none; stroke: var(--accent); stroke-width: 2; }
@@ -223,10 +224,10 @@
   .trend .point { fill: var(--accent); }
   .trend .line-2 { fill: none; stroke: var(--accent-2); stroke-width: 1.5; stroke-dasharray: 4 3; }
   .trend .point-2 { fill: var(--accent-2); }
-  .trend .axis-label { fill: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
-  .trend .axis-label.right { fill: var(--accent-2); opacity: 0.8; }
-  .trend .axis-label.left  { fill: var(--accent);   opacity: 0.8; }
-  .trend .legend { font-size: 10px; font-variant-numeric: tabular-nums; }
+  .trend .axis-label { fill: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; font-weight: 500; }
+  .trend .axis-label.right { fill: var(--accent-2); opacity: 0.85; }
+  .trend .axis-label.left  { fill: var(--accent);   opacity: 0.85; }
+  .trend .legend { font-size: 12px; font-variant-numeric: tabular-nums; }
   .trend-empty {
     color: var(--muted);
     font-size: 13px;
@@ -539,7 +540,7 @@
     <div class="panel">
       <div class="panel-title">Skill area over time</div>
       <div class="trend-wrap" id="trend-wrap">
-        <svg class="trend" id="trend" viewBox="0 0 600 140" preserveAspectRatio="none"></svg>
+        <svg class="trend" id="trend"></svg>
       </div>
     </div>
 
@@ -829,7 +830,7 @@ function loadState() {
     daily: safeGet(KEYS.daily, {}),
     streak: safeGet(KEYS.streak, { current: 0, longest: 0, lastDate: null }),
     unlocks: safeGet(KEYS.unlocks, ["add", "sub"]),
-    audio: safeGet(KEYS.audio, false),
+    audio: safeGet(KEYS.audio, true),
     opMedians: safeGet(KEYS.opMedians, { add: 2200, sub: 2400, mul: 3000, div: 3200, sq: 3000, pow: 3500, sqrt: 3000, fact: 2800 }),
     achievements: safeGet(KEYS.achievements, []),
     dailyChallenge: safeGet(KEYS.dailyChallenge, null),
@@ -1046,34 +1047,43 @@ function areaNorm(skill) {
 }
 
 // ---------- audio (subtle WebAudio tick) ----------
-// iOS Safari requires the AudioContext to be created AND a sound source
-// to be started inside the same user gesture, otherwise the context stays
-// locked. We unlock by playing a 1-sample silent buffer the first time
-// ensureAudioCtx() runs from a tap. Note: iPhone hardware silent switch
-// silences WebAudio in Safari with no workaround.
+// Audio is gated by state.audio (toggled via the footer button). When ON we
+// create an AudioContext lazily inside a user gesture, attempt to resume()
+// (Chrome desktop autoplay policy + iOS Safari both require this), and on
+// the first unlock play a 1-sample silent buffer to flip iOS's audio gate.
+// Note: iPhone hardware silent switch still mutes WebAudio in Safari.
 let audioCtx = null;
 let audioUnlocked = false;
 function ensureAudioCtx() {
   if (!audioCtx) {
-    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-    catch (e) { return; }
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    try { audioCtx = new Ctx(); } catch (e) { audioCtx = null; return; }
+  }
+  // resume on every gesture — both Chrome and iOS Safari may auto-suspend
+  if (audioCtx.state === "suspended") {
+    try { audioCtx.resume(); } catch (e) {}
   }
   if (!audioUnlocked) {
     try {
-      // resume in case it was suspended (post-creation default on iOS)
-      if (audioCtx.state === "suspended" && audioCtx.resume) audioCtx.resume();
-      // play a silent buffer to flip iOS Safari's audio gate
-      const buf = audioCtx.createBuffer(1, 1, 22050);
+      const sr = audioCtx.sampleRate || 22050;
+      const buf = audioCtx.createBuffer(1, 1, sr);
       const src = audioCtx.createBufferSource();
       src.buffer = buf;
       src.connect(audioCtx.destination);
-      src.start(0);
+      src.start();
       audioUnlocked = true;
-    } catch (e) {}
+    } catch (e) {
+      // unlock failed; sound may still work on browsers that don't need it
+    }
   }
 }
 function tick(freq) {
   if (!state.audio || !audioCtx) return;
+  // best-effort resume in case the context drifted to suspended
+  if (audioCtx.state === "suspended") {
+    try { audioCtx.resume(); } catch (e) {}
+  }
   try {
     const o = audioCtx.createOscillator();
     const g = audioCtx.createGain();
@@ -1083,10 +1093,10 @@ function tick(freq) {
     g.connect(audioCtx.destination);
     const t = audioCtx.currentTime;
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.06, t + 0.005);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.08, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
     o.start(t);
-    o.stop(t + 0.06);
+    o.stop(t + 0.08);
   } catch (e) {}
 }
 
@@ -1157,8 +1167,16 @@ function renderRadar(svgEl, skillNow, skillPrev) {
 // question in seconds (auto-scaled). x-axis is session index across the last
 // 60 sessions. Faster avg-time = lower on chart, so the two lines naturally
 // "cross" as the user gets stronger and faster — orange goes up, blue goes down.
+//
+// The viewBox is sized to actual pixel dimensions on each render so text
+// renders 1:1 — no stretching when displayed on a narrow phone screen.
 function renderTrend(svgEl, history) {
-  const W = 600, H = 140, padL = 32, padR = 38, padT = 10, padB = 22;
+  const wrap = svgEl.parentElement;
+  const W = Math.max(320, Math.round(wrap.clientWidth || 600));
+  const H = 180;
+  svgEl.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svgEl.setAttribute("preserveAspectRatio", "none");
+  const padL = 38, padR = 46, padT = 14, padB = 28;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
   let g = "";
@@ -1853,6 +1871,16 @@ document.getElementById("reset-btn").addEventListener("click", () => {
   state = loadState();
   adjustStreakOnLoad();
   renderHome();
+});
+
+// re-render the home dashboard on viewport resize / orientation change so the
+// trend chart's pixel-accurate viewBox stays in sync with the new container width
+let resizeTimer = null;
+window.addEventListener("resize", () => {
+  if (resizeTimer) clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (screens.home && !screens.home.hidden) renderHome();
+  }, 150);
 });
 
 // ---------- init ----------
