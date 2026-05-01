@@ -44,7 +44,10 @@
   main {
     max-width: 760px;
     margin: 0 auto;
-    padding: 28px 24px max(80px, env(safe-area-inset-bottom));
+    padding-top: max(28px, calc(env(safe-area-inset-top) + 14px));
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+    padding-bottom: max(60px, env(safe-area-inset-bottom));
     position: relative;
     z-index: 5;
   }
@@ -493,10 +496,30 @@
   [hidden] { display: none !important; }
 
   @media (max-width: 600px) {
-    .question { font-size: 56px; }
+    h1 { font-size: 16px; margin-bottom: 16px; }
+    .question { font-size: 56px; margin: 16px 0 16px; }
     input.answer { font-size: 28px; width: 180px; }
-    main { padding: 20px 16px 60px; }
-    .end-score .big { font-size: 48px; }
+    .end-score .big { font-size: 56px; }
+    .end-score .sub { font-size: 12px; }
+    .insight { font-size: 13px; padding: 10px 14px; margin: 10px 0; }
+    .deltas { font-size: 12px; gap: 8px 14px; margin: 12px 0; }
+    .panel { padding: 14px; margin-bottom: 12px; }
+    .panel-title { font-size: 10px; }
+    .stats-row { gap: 16px; }
+    .stat-value { font-size: 18px; }
+    .stat-label { font-size: 10px; }
+    svg.radar { max-width: 240px; }
+    .question.changing { animation-duration: 0.14s; }
+    .cta-row { margin: 18px 0 4px; }
+    .cta { padding: 14px 28px; font-size: 15px; min-width: 0; flex: 1; }
+    .cta.secondary { flex: 0 0 auto; }
+    .cta.tiny { padding: 6px 12px; font-size: 11px; }
+    .round-bar { margin-bottom: 18px; }
+    .round-bar .pb-bar-wrap { width: 60px; }
+  }
+  /* hide keyboard-shortcut hints on touch devices (where space/enter/esc don't apply) */
+  @media (hover: none) and (pointer: coarse) {
+    .start-prompt { display: none; }
   }
 </style>
 </head>
@@ -1023,27 +1046,48 @@ function areaNorm(skill) {
 }
 
 // ---------- audio (subtle WebAudio tick) ----------
+// iOS Safari requires the AudioContext to be created AND a sound source
+// to be started inside the same user gesture, otherwise the context stays
+// locked. We unlock by playing a 1-sample silent buffer the first time
+// ensureAudioCtx() runs from a tap. Note: iPhone hardware silent switch
+// silences WebAudio in Safari with no workaround.
 let audioCtx = null;
+let audioUnlocked = false;
 function ensureAudioCtx() {
   if (!audioCtx) {
     try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-    catch (e) {}
+    catch (e) { return; }
+  }
+  if (!audioUnlocked) {
+    try {
+      // resume in case it was suspended (post-creation default on iOS)
+      if (audioCtx.state === "suspended" && audioCtx.resume) audioCtx.resume();
+      // play a silent buffer to flip iOS Safari's audio gate
+      const buf = audioCtx.createBuffer(1, 1, 22050);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+      src.connect(audioCtx.destination);
+      src.start(0);
+      audioUnlocked = true;
+    } catch (e) {}
   }
 }
 function tick(freq) {
   if (!state.audio || !audioCtx) return;
-  const o = audioCtx.createOscillator();
-  const g = audioCtx.createGain();
-  o.type = "sine";
-  o.frequency.value = freq;
-  o.connect(g);
-  g.connect(audioCtx.destination);
-  const t = audioCtx.currentTime;
-  g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(0.06, t + 0.005);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
-  o.start(t);
-  o.stop(t + 0.06);
+  try {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "sine";
+    o.frequency.value = freq;
+    o.connect(g);
+    g.connect(audioCtx.destination);
+    const t = audioCtx.currentTime;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.06, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    o.start(t);
+    o.stop(t + 0.06);
+  } catch (e) {}
 }
 
 // ---------- radar SVG ----------
@@ -1301,7 +1345,11 @@ function buildInsight(session) {
   const { responses, score, perOpDelta, prevSkill, bestCombo } = session;
   const lines = [];
   if (responses.length === 0) {
-    return "every round counts. tap or press space to go again.";
+    return "no answers yet — go again, even one correct sets a baseline.";
+  }
+  if (responses.length === 1) {
+    const r = responses[0];
+    return `first solve: ${OP_NAME[r.op]} in ${(r.t/1000).toFixed(2)}s. keep going to build a baseline.`;
   }
   // hot finish — last 3 answers were each fast (sub-target)
   if (responses.length >= 3) {
@@ -1369,7 +1417,11 @@ function buildInsight(session) {
     lines.push(`avg question difficulty: ${avgW.toFixed(2)}`);
   }
   // pick one at random for variable-reward feel
-  if (lines.length === 0) return "warming up.";
+  if (lines.length === 0) {
+    // fall back to a stable summary so the panel never reads as empty
+    const avgS = (responses.reduce((a, r) => a + r.t, 0) / responses.length / 1000).toFixed(2);
+    return `${responses.length} solved · ${avgS}s avg.`;
+  }
   return pick(lines);
 }
 
@@ -1684,14 +1736,19 @@ function endRound() {
     ub.hidden = true;
   }
 
-  // deltas
+  // deltas — show only ops whose skill actually changed
   const dEl = document.getElementById("deltas");
   dEl.innerHTML = "";
-  for (const op of state.unlocks) {
-    const d = perOpDelta[op] || 0;
-    const sign = d > 0 ? `+${d}` : (d < 0 ? `${d}` : "·");
-    const cls = d > 0 ? "pos" : (d < 0 ? "neg" : "");
-    dEl.innerHTML += `<span class="d ${cls}">${OP_LABEL[op]} ${sign}</span>`;
+  const changed = state.unlocks.filter(op => (perOpDelta[op] || 0) !== 0);
+  if (changed.length === 0) {
+    dEl.innerHTML = `<span class="d">no skill changes this round</span>`;
+  } else {
+    for (const op of changed) {
+      const d = perOpDelta[op];
+      const sign = d > 0 ? `+${d}` : `−${Math.abs(d)}`;
+      const cls = d > 0 ? "pos" : "neg";
+      dEl.innerHTML += `<span class="d ${cls}">${OP_LABEL[op]} ${sign}</span>`;
+    }
   }
 
   // achievement toasts
