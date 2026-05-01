@@ -648,6 +648,31 @@
     color: #0e1116;
   }
 
+  /* Two-line hard-mode question header — small function definition above the
+     main evaluation prompt (used by poly / deriv / partial / grad). */
+  .question .q-def {
+    display: block;
+    font-size: 0.42em;
+    font-weight: 400;
+    color: var(--muted);
+    line-height: 1.25;
+    margin-bottom: 0.22em;
+    letter-spacing: 0;
+  }
+
+  /* Math typography for hard-mode questions: serif faces with proper italic
+     for variables, tabular figures for matrix alignment. */
+  .question.math-mode {
+    font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", "New Computer Modern", "Times New Roman", Georgia, serif;
+    font-feature-settings: "tnum" 1, "lnum" 1, "ss01" 1;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+  .question.math-mode i  { font-style: italic; font-weight: 500; }
+  .question.math-mode .fn { font-style: normal; }   /* sin, cos, log, etc. */
+  .question.math-mode sup,
+  .question.math-mode sub { font-feature-settings: "tnum" 1; }
+
   /* Inline 2×2 matrix used by det questions */
   .question .m22 {
     display: inline-grid;
@@ -872,13 +897,28 @@
 // (calc/linear-algebra ops with positive-integer answers). Each mode has its
 // own skill, unlocks, history, top scores, etc. — see state.modes below.
 const OPS_EASY = ["add", "sub", "mul", "div", "sq", "pow", "sqrt", "fact"];
-const OPS_HARD = ["dot", "magsq", "det", "poly", "deriv", "choose"];
+// Order matters — this determines the radar spoke positions, so we list ops
+// in ascending difficulty (matching their unlock thresholds). Easier ops at
+// the top, hardest at the bottom of the rotation, so the polygon naturally
+// fills clockwise as the user climbs.
+const OPS_HARD = [
+  "dot", "magsq", "det",
+  "log", "lineq", "trig",
+  "seq", "poly", "lastdig",
+  "choose", "quad", "deriv",
+  "partial", "grad"
+];
 const OP_LABEL_EASY = {
   add: "+", sub: "−", mul: "×", div: "÷",
   sq: "n²", pow: "aⁿ", sqrt: "√", fact: "n!"
 };
 const OP_LABEL_HARD = {
-  dot: "·", magsq: "|v|²", det: "det", poly: "P(x)", deriv: "f′", choose: "ⁿCₖ"
+  dot: "·", magsq: "‖v‖²", det: "det",
+  log: "log", trig: "sin θ", lastdig: "lastᴅ",
+  seq: "…?", lineq: "ax+b", quad: "x²",
+  poly: "f(x)", deriv: "f′",
+  partial: "∂f", grad: "∇f",
+  choose: "ⁿCₖ"
 };
 const OP_NAME_EASY = {
   add: "addition", sub: "subtraction", mul: "multiplication", div: "division",
@@ -886,7 +926,11 @@ const OP_NAME_EASY = {
 };
 const OP_NAME_HARD = {
   dot: "dot product", magsq: "magnitude squared", det: "determinant",
-  poly: "polynomial eval", deriv: "derivative", choose: "combinations"
+  log: "logarithm", trig: "trig identity", lastdig: "last digit of power",
+  seq: "sequence", lineq: "linear equation", quad: "quadratic",
+  poly: "polynomial eval", deriv: "derivative",
+  partial: "partial derivative", grad: "gradient magnitude",
+  choose: "combinations"
 };
 const UNLOCK_TIERS_EASY = [
   { op: "mul",  threshold: 12 },
@@ -897,10 +941,18 @@ const UNLOCK_TIERS_EASY = [
   { op: "fact", threshold: 65 },
 ];
 const UNLOCK_TIERS_HARD = [
-  { op: "det",    threshold: 8 },
-  { op: "poly",   threshold: 16 },
-  { op: "deriv",  threshold: 24 },
-  { op: "choose", threshold: 34 },
+  { op: "det",     threshold: 4 },
+  { op: "log",     threshold: 7 },
+  { op: "lineq",   threshold: 10 },
+  { op: "trig",    threshold: 13 },
+  { op: "seq",     threshold: 16 },
+  { op: "poly",    threshold: 20 },
+  { op: "lastdig", threshold: 24 },
+  { op: "choose",  threshold: 28 },
+  { op: "quad",    threshold: 32 },
+  { op: "deriv",   threshold: 38 },
+  { op: "partial", threshold: 46 },
+  { op: "grad",    threshold: 56 },
 ];
 // Mode-aware accessors — every reference to ops/labels/etc goes through these
 // so the same render and game logic powers both modes.
@@ -912,18 +964,32 @@ function bucket()      { return state.modes[state.mode]; }
 // Defaults for a fresh hard-mode bucket — only `dot` and `magsq` start unlocked.
 function defaultHardBucket() {
   return {
-    skill: { dot: 0, magsq: 0, det: 0, poly: 0, deriv: 0, choose: 0 },
+    skill: {
+      dot: 0, magsq: 0, det: 0,
+      log: 0, trig: 0, lastdig: 0,
+      seq: 0, lineq: 0, quad: 0,
+      poly: 0, deriv: 0, partial: 0, grad: 0, choose: 0
+    },
     unlocks: ["dot", "magsq"],
     bestScore: 0,
     history: [],
     lastRadar: null,
-    opMedians: { dot: 4500, magsq: 4500, det: 5500, poly: 5500, deriv: 6000, choose: 4500 },
+    opMedians: {
+      dot: 4500, magsq: 4500, det: 5500,
+      log: 4000, trig: 4500, lastdig: 5500,
+      seq: 4500, lineq: 4500, quad: 5500,
+      poly: 5500, deriv: 6000,
+      partial: 6500, grad: 5500,
+      choose: 4500
+    },
     opPRs: {},
     bestCombo: 0,
     topScores: [],
   };
 }
 const ROUND_SECONDS = 120;
+const ROUND_SECONDS_HARD = 240;
+function modeRoundSeconds() { return state.mode === "hard" ? ROUND_SECONDS_HARD : ROUND_SECONDS; }
 
 // ---------- mini-achievements ----------
 // Tasteful milestones — toasted ONCE on the end screen the round they're earned.
@@ -1066,12 +1132,20 @@ function questionWeight(q) {
     case "sqrt": return clamp(2 + lg(ans / 5),  2, 5);
     case "fact": return clamp(3 + lg(ans / 6),  3, 6);
     // Hard-mode weights — base higher than easy ops to reflect cognitive load.
-    case "dot":   return clamp(3 + lg(ans / 30),  3, 7);
-    case "magsq": return clamp(3 + lg(ans / 30),  3, 7);
-    case "det":   return clamp(3 + lg(ans / 15),  3, 7);
-    case "poly":  return clamp(4 + lg(ans / 50),  4, 8);
-    case "deriv": return clamp(4 + lg(ans / 30),  4, 8);
-    case "choose":return clamp(3 + lg(ans / 10),  3, 7);
+    case "dot":     return clamp(3 + lg(ans / 30),  3, 7);
+    case "magsq":   return clamp(3 + lg(ans / 30),  3, 7);
+    case "det":     return clamp(3 + lg(ans / 15),  3, 7);
+    case "poly":    return clamp(4 + lg(ans / 50),  4, 8);
+    case "deriv":   return clamp(4 + lg(ans / 30),  4, 8);
+    case "choose":  return clamp(3 + lg(ans / 10),  3, 7);
+    case "log":     return clamp(3 + lg(ans / 2),   3, 7);
+    case "trig":    return clamp(4 + lg(ans / 4),   4, 7);
+    case "partial": return clamp(5 + lg(ans / 30),  5, 9);
+    case "grad":    return clamp(4 + lg(ans / 5),   4, 8);
+    case "lastdig": return clamp(4 + lg(ans / 3),   4, 7);
+    case "seq":     return clamp(4 + lg(ans / 20),  4, 8);
+    case "lineq":   return clamp(3 + lg(ans / 5),   3, 7);
+    case "quad":    return clamp(4 + lg(ans / 5),   4, 8);
   }
   return 1;
 }
@@ -1282,12 +1356,13 @@ function adjustSkill(op, ms) {
   const sk = bucket().skill;
   const s = sk[op];
   const t = targetTimeMs(s);
-  // Hard mode rewards correct answers more generously per fast solve so the
-  // polygon visibly grows session-to-session despite the higher question cost.
+  // Hard mode rewards correct answers more generously and decays only on
+  // very-long answers so the polygon climbs visibly session-to-session.
   const hard = state.mode === "hard";
-  if (ms < t * 0.55)    sk[op] = s + (hard ? 4 : 3);
-  else if (ms < t)      sk[op] = s + (hard ? 3 : 2);
-  else if (ms > 3 * t)  sk[op] = Math.max(0, s - 1);
+  const decayMul = hard ? 4 : 3;
+  if (ms < t * 0.55)            sk[op] = s + (hard ? 5 : 3);
+  else if (ms < t)              sk[op] = s + (hard ? 4 : 2);
+  else if (ms > decayMul * t)   sk[op] = Math.max(0, s - 1);
 }
 
 // ---------- question generators ----------
@@ -1366,6 +1441,68 @@ function rangeSqrt(s) {
   if (s < 500) return [40,  225];
   return        [75,  350];
 }
+// Curated bank of trig expressions whose value is a positive integer.
+// Mixes scaled-angle evaluations and Pythagorean-identity drills. Used by
+// the `trig` hard-mode operator.
+const TRIG_BANK_EASY = [
+  { display: "2·sin(30°)", answer: 1 },
+  { display: "2·cos(60°)", answer: 1 },
+  { display: "tan(45°)", answer: 1 },
+  { display: "sin(90°)", answer: 1 },
+  { display: "cos(0°)", answer: 1 },
+  { display: "sec(0°)", answer: 1 },
+  { display: "csc(90°)", answer: 1 },
+  { display: "4·sin(30°)", answer: 2 },
+  { display: "4·cos(60°)", answer: 2 },
+  { display: "2·tan(45°)", answer: 2 },
+  { display: "6·sin(30°)", answer: 3 },
+  { display: "6·cos(60°)", answer: 3 },
+  { display: "3·tan(45°)", answer: 3 },
+  { display: "8·sin(30°)", answer: 4 },
+  { display: "10·sin(30°)", answer: 5 },
+  { display: "10·cos(60°)", answer: 5 },
+  { display: "12·sin(30°)", answer: 6 },
+  { display: "sin²(30°) + cos²(30°)", answer: 1 },
+  { display: "sin²(60°) + cos²(60°)", answer: 1 },
+  { display: "sin²(45°) + cos²(45°)", answer: 1 },
+];
+const TRIG_BANK_MID = [
+  { display: "5·(sin²(30°) + cos²(30°))", answer: 5 },
+  { display: "8·(sin²(45°) + cos²(45°))", answer: 8 },
+  { display: "12·(sin²(60°) + cos²(60°))", answer: 12 },
+  { display: "sec²(45°) − tan²(45°)", answer: 1 },
+  { display: "csc²(30°) − cot²(30°)", answer: 1 },
+  { display: "5·tan(45°) + 3·cos(0°)", answer: 8 },
+  { display: "10·sin(30°) + 4·cos(60°)", answer: 7 },
+  { display: "8·cos(60°) + 6·sin(30°)", answer: 7 },
+  { display: "12·tan(45°) − 7·sin(90°)", answer: 5 },
+  { display: "20·cos(60°) − 4·tan(45°)", answer: 6 },
+  { display: "9·csc(90°) + 5·sec(0°)", answer: 14 },
+  { display: "(sin(30°) + cos(60°))·10", answer: 10 },
+];
+const TRIG_BANK_HARD = [
+  { display: "16·sin²(60°) + 4·cos²(0°)·1", answer: 16 }, // 16·(3/4) + 4 = 12 + 4 = 16
+  { display: "8·tan²(60°) + 4·sec²(0°)", answer: 28 },    // 8·3 + 4 = 28
+  { display: "9·sec²(60°) − 18·tan²(45°)", answer: 18 },  // 9·4 − 18 = 18
+  { display: "(2·sin(45°))²·10", answer: 20 },            // (√2)²·10 = 2·10 = 20
+  { display: "(2·cos(45°))²·15", answer: 30 },            // 2·15 = 30
+  { display: "(2·sin(60°))²·5", answer: 15 },             // 3·5 = 15
+  { display: "16·cos²(45°) + 8·sin²(45°)", answer: 12 },  // 8 + 4 = 12
+  { display: "20·sin²(45°) − 5·cos²(0°)", answer: 5 },    // 10 − 5 = 5
+];
+
+// Pythagorean tuples used by the `grad` operator — gradient magnitude is the
+// Euclidean norm of the (constant) gradient vector, so we hand-pick (a,b,r)
+// or (a,b,c,r) with r²=a²+b²(+c²) so the answer is always a positive integer.
+const PYTH_2D = [
+  [3,4,5], [5,12,13], [6,8,10], [8,15,17], [9,12,15],
+  [7,24,25], [9,40,41], [11,60,61], [12,16,20], [20,21,29]
+];
+const PYTH_3D = [
+  [1,2,2,3], [2,3,6,7], [1,4,8,9], [4,4,7,9], [2,6,9,11],
+  [6,6,7,11], [2,8,16,18], [3,4,12,13], [4,5,20,21]
+];
+
 // Hard-mode range curves. Same shape as easy-mode: gentle early, climbing
 // well past skill 100 so advanced players keep facing harder problems.
 function rangeDot(s) {
@@ -1420,6 +1557,64 @@ function rangeChoose(s) {
   if (s < 100) return { nMin: 10, nMax: 16, kMax: 6 };
   if (s < 150) return { nMin: 12, nMax: 18, kMax: 6 };
   return        { nMin: 14, nMax: 20, kMax: 7 };
+}
+// log_b(b^k) for natural-number answers. Bases [2,3,5,10] and ln(e^k) for variety.
+function rangeLog(s) {
+  if (s < 5)   return { bases: [2, 10],          kMin: 1, kMax: 4, allowLn: false };
+  if (s < 15)  return { bases: [2, 3, 10],       kMin: 1, kMax: 5, allowLn: false };
+  if (s < 30)  return { bases: [2, 3, 5, 10],    kMin: 1, kMax: 6, allowLn: true };
+  if (s < 50)  return { bases: [2, 3, 5, 10],    kMin: 2, kMax: 7, allowLn: true };
+  if (s < 75)  return { bases: [2, 3, 5, 7, 10], kMin: 2, kMax: 8, allowLn: true };
+  if (s < 100) return { bases: [2, 3, 5, 7],     kMin: 3, kMax: 9, allowLn: true };
+  return        { bases: [2, 3, 5, 7, 11],       kMin: 3, kMax: 10, allowLn: true };
+}
+// Trig bank tier — hand-curated above, just pick the bank for current skill.
+function rangeTrig(s) {
+  if (s < 20) return TRIG_BANK_EASY;
+  if (s < 50) return TRIG_BANK_EASY.concat(TRIG_BANK_MID);
+  return TRIG_BANK_EASY.concat(TRIG_BANK_MID, TRIG_BANK_HARD);
+}
+// f(x,y) = ax² + bxy + cy² + dx + ey ; partial wrt x or y at (x₀,y₀).
+function rangePartial(s) {
+  if (s < 5)   return { coefMax: 3, ptMax: 4 };
+  if (s < 15)  return { coefMax: 4, ptMax: 5 };
+  if (s < 30)  return { coefMax: 5, ptMax: 6 };
+  if (s < 50)  return { coefMax: 6, ptMax: 7 };
+  if (s < 75)  return { coefMax: 8, ptMax: 8 };
+  if (s < 100) return { coefMax: 10, ptMax: 10 };
+  return        { coefMax: 12, ptMax: 12 };
+}
+// Gradient magnitude — uses curated Pythagorean tuples for clean integer answers.
+function rangeGrad(s) {
+  // start with 2D pairs; introduce 3D triples after skill 30.
+  return s < 30 ? { dim: 2, tuples: PYTH_2D.slice(0, 4) }
+       : s < 60 ? { dim: 2, tuples: PYTH_2D }
+       : s < 100 ? { dim: 3, tuples: PYTH_3D.slice(0, 5) }
+       :          { dim: 3, tuples: PYTH_3D };
+}
+function rangeLastdig(s) {
+  // base/exponent ranges for "last digit of base^exp" pattern recognition
+  if (s < 10) return { bases: [2, 3, 7], expMin: 2, expMax: 6 };
+  if (s < 25) return { bases: [2, 3, 4, 7, 8], expMin: 3, expMax: 10 };
+  if (s < 50) return { bases: [2, 3, 4, 6, 7, 8, 9], expMin: 5, expMax: 20 };
+  if (s < 75) return { bases: [2, 3, 4, 6, 7, 8, 9, 11, 12, 13], expMin: 7, expMax: 50 };
+  return        { bases: [2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 17, 19, 23], expMin: 10, expMax: 200 };
+}
+function rangeLineq(s) {
+  // ax + b = c → x = (c-b)/a, must be positive integer
+  if (s < 10) return { aMax: 5,  bMax: 10, xMax: 8 };
+  if (s < 25) return { aMax: 8,  bMax: 20, xMax: 12 };
+  if (s < 50) return { aMax: 12, bMax: 35, xMax: 20 };
+  if (s < 75) return { aMax: 15, bMax: 50, xMax: 30 };
+  return        { aMax: 20, bMax: 80, xMax: 50 };
+}
+function rangeQuad(s) {
+  // x² - (r₁+r₂)x + r₁r₂ = 0; both roots positive integers; ask for one
+  if (s < 10) return { rMin: 1, rMax: 6 };
+  if (s < 30) return { rMin: 1, rMax: 10 };
+  if (s < 60) return { rMin: 2, rMax: 15 };
+  if (s < 100) return { rMin: 3, rMax: 20 };
+  return        { rMin: 5, rMax: 30 };
 }
 // Factorials are bounded by typeable answers (10! = 3,628,800). Beyond skill
 // 200 we restrict to the larger end of the range so the user doesn't get 1!
@@ -1490,13 +1685,13 @@ function makeQuestion(op) {
       const v = [randInt(lo, hi), randInt(lo, hi), randInt(lo, hi)];
       const w = [randInt(lo, hi), randInt(lo, hi), randInt(lo, hi)];
       const ans = v[0]*w[0] + v[1]*w[1] + v[2]*w[2];
-      return { op, display: `[${v.join(", ")}] · [${w.join(", ")}]`, answer: ans };
+      return { op, display: `⟨${v.join(", ")}⟩ · ⟨${w.join(", ")}⟩`, answer: ans };
     }
     case "magsq": {
       const [lo, hi] = rangeMagsq(s);
       const v = [randInt(lo, hi), randInt(lo, hi), randInt(lo, hi)];
       const ans = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
-      return { op, display: `|[${v.join(", ")}]|<sup>2</sup>`, answer: ans };
+      return { op, display: `‖⟨${v.join(", ")}⟩‖<sup>2</sup>`, answer: ans };
     }
     case "det": {
       const [lo, hi] = rangeDet(s);
@@ -1517,7 +1712,6 @@ function makeQuestion(op) {
     }
     case "poly": {
       const cfg = rangePoly(s);
-      // f(x) = a·x³ + b·x² + c·x + d, all coefficients ≥ 0, x ≥ 1 → f(x) > 0
       const x = randInt(cfg.xMin, cfg.xMax);
       const a3 = cfg.cubic ? randInt(0, cfg.coefMax) : 0;
       const a2 = randInt(cfg.quadMin, cfg.coefMax);
@@ -1525,16 +1719,19 @@ function makeQuestion(op) {
       const a0 = randInt(0, cfg.constMax);
       const ans = a3*x*x*x + a2*x*x + a1*x + a0;
       const parts = [];
-      if (a3 > 0) parts.push(a3 === 1 ? `x<sup>3</sup>` : `${a3}x<sup>3</sup>`);
-      if (a2 > 0) parts.push(a2 === 1 ? `x<sup>2</sup>` : `${a2}x<sup>2</sup>`);
-      if (a1 > 0) parts.push(a1 === 1 ? `x` : `${a1}x`);
+      if (a3 > 0) parts.push((a3 === 1 ? "" : a3) + `<i>x</i><sup>3</sup>`);
+      if (a2 > 0) parts.push((a2 === 1 ? "" : a2) + `<i>x</i><sup>2</sup>`);
+      if (a1 > 0) parts.push((a1 === 1 ? "" : a1) + `<i>x</i>`);
       if (a0 > 0) parts.push(`${a0}`);
       const expr = parts.length ? parts.join(" + ") : "0";
-      return { op, display: `${expr} | x=${x}`, answer: ans };
+      return {
+        op,
+        display: `<span class="q-def"><i>f</i>(<i>x</i>) = ${expr}</span><i>f</i>(${x})`,
+        answer: ans
+      };
     }
     case "deriv": {
       const cfg = rangePoly(s);
-      // f(x) = a·x³ + b·x² + c·x + d → f'(x) = 3a·x² + 2b·x + c
       const x = randInt(cfg.xMin, cfg.xMax);
       const a3 = cfg.cubic ? randInt(0, cfg.coefMax) : 0;
       const a2 = randInt(cfg.quadMin, cfg.coefMax);
@@ -1542,12 +1739,207 @@ function makeQuestion(op) {
       const a0 = randInt(0, cfg.constMax);
       const ans = 3*a3*x*x + 2*a2*x + a1;
       const parts = [];
-      if (a3 > 0) parts.push(a3 === 1 ? `x<sup>3</sup>` : `${a3}x<sup>3</sup>`);
-      if (a2 > 0) parts.push(a2 === 1 ? `x<sup>2</sup>` : `${a2}x<sup>2</sup>`);
-      if (a1 > 0) parts.push(a1 === 1 ? `x` : `${a1}x`);
+      if (a3 > 0) parts.push((a3 === 1 ? "" : a3) + `<i>x</i><sup>3</sup>`);
+      if (a2 > 0) parts.push((a2 === 1 ? "" : a2) + `<i>x</i><sup>2</sup>`);
+      if (a1 > 0) parts.push((a1 === 1 ? "" : a1) + `<i>x</i>`);
       if (a0 > 0) parts.push(`${a0}`);
       const expr = parts.length ? parts.join(" + ") : "0";
-      return { op, display: `(${expr})′ | x=${x}`, answer: ans };
+      return {
+        op,
+        display: `<span class="q-def"><i>f</i>(<i>x</i>) = ${expr}</span><i>f</i>′(${x})`,
+        answer: ans
+      };
+    }
+    case "log": {
+      const cfg = rangeLog(s);
+      if (cfg.allowLn && Math.random() < 0.3) {
+        const k = randInt(cfg.kMin, cfg.kMax);
+        return { op, display: `<span class="fn">ln</span>(<i>e</i><sup>${k}</sup>)`, answer: k };
+      }
+      const base = pick(cfg.bases);
+      const k = randInt(cfg.kMin, cfg.kMax);
+      const safeK = (base >= 7) ? Math.min(k, 5) : k;
+      const n = Math.pow(base, safeK);
+      return { op, display: `<span class="fn">log</span><sub>${base}</sub>(${n})`, answer: safeK };
+    }
+    case "trig": {
+      const bank = rangeTrig(s);
+      const item = pick(bank);
+      return { op, display: item.display, answer: item.answer };
+    }
+    case "partial": {
+      const cfg = rangePartial(s);
+      let a, b, c, d, e, x0, y0, which, ans, tries = 0;
+      do {
+        a = randInt(0, cfg.coefMax);
+        b = randInt(0, cfg.coefMax);
+        c = randInt(0, cfg.coefMax);
+        d = randInt(0, cfg.coefMax);
+        e = randInt(0, cfg.coefMax);
+        x0 = randInt(1, cfg.ptMax);
+        y0 = randInt(1, cfg.ptMax);
+        which = Math.random() < 0.5 ? "x" : "y";
+        ans = (which === "x") ? (2*a*x0 + b*y0 + d) : (b*x0 + 2*c*y0 + e);
+        tries++;
+      } while (ans <= 0 && tries < 30);
+      if (ans <= 0) {
+        a = 1; b = 1; c = 1; d = 0; e = 0; which = "x";
+        ans = 2*a*x0 + b*y0 + d;
+      }
+      const parts = [];
+      if (a > 0) parts.push((a === 1 ? "" : a) + `<i>x</i><sup>2</sup>`);
+      if (b > 0) parts.push((b === 1 ? "" : b) + `<i>xy</i>`);
+      if (c > 0) parts.push((c === 1 ? "" : c) + `<i>y</i><sup>2</sup>`);
+      if (d > 0) parts.push((d === 1 ? "" : d) + `<i>x</i>`);
+      if (e > 0) parts.push((e === 1 ? "" : e) + `<i>y</i>`);
+      const fExpr = parts.join(" + ") || "<i>x</i><sup>2</sup>";
+      return {
+        op,
+        display: `<span class="q-def"><i>f</i>(<i>x</i>,<i>y</i>) = ${fExpr}</span>∂<i>f</i>/∂<i>${which}</i> at (${x0}, ${y0})`,
+        answer: ans
+      };
+    }
+    case "grad": {
+      const cfg = rangeGrad(s);
+      const t = pick(cfg.tuples);
+      if (cfg.dim === 3) {
+        return {
+          op,
+          display: `<span class="q-def"><i>f</i> = ${t[0]}<i>x</i> + ${t[1]}<i>y</i> + ${t[2]}<i>z</i></span>‖∇<i>f</i>‖`,
+          answer: t[3]
+        };
+      }
+      return {
+        op,
+        display: `<span class="q-def"><i>f</i>(<i>x</i>,<i>y</i>) = ${t[0]}<i>x</i> + ${t[1]}<i>y</i></span>‖∇<i>f</i>‖`,
+        answer: t[2]
+      };
+    }
+    case "lastdig": {
+      const cfg = rangeLastdig(s);
+      const base = pick(cfg.bases);
+      const exp = randInt(cfg.expMin, cfg.expMax);
+      // last digit cycles depending on base; compute via modular exponentiation
+      // on base mod 10 — period divides 4 for any starting point
+      const b10 = base % 10;
+      let last;
+      if (b10 === 0) last = 0;
+      else if (b10 === 1 || b10 === 5 || b10 === 6) last = b10;
+      else {
+        const cycle = [];
+        let cur = 1;
+        for (let i = 0; i < 8; i++) { cur = (cur * b10) % 10; cycle.push(cur); }
+        const period = cycle.indexOf(cycle[3], 0) + 1; // safe period detection
+        last = cycle[(exp - 1) % 4];
+      }
+      // Avoid 0 answer (degenerate); retry with a different base if needed
+      if (last === 0) {
+        return makeQuestion("lastdig"); // recursion is bounded since we only retry on rare base%10===0
+      }
+      return {
+        op,
+        display: `last digit of ${base}<sup>${exp}</sup>`,
+        answer: last
+      };
+    }
+    case "seq": {
+      // pick one of several pattern types and produce a sequence of 4-5 terms
+      // followed by `?`. answer is the next term.
+      const types = s < 15 ? ["arith", "geom", "squares"]
+                  : s < 35 ? ["arith", "geom", "squares", "fib", "cubes"]
+                  : s < 70 ? ["arith", "geom", "squares", "fib", "cubes", "tri", "pow2"]
+                  :          ["arith", "geom", "squares", "fib", "cubes", "tri", "pow2", "primes"];
+      const t = pick(types);
+      let seq, ans;
+      const PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43];
+      switch (t) {
+        case "arith": {
+          const start = randInt(1, 8);
+          const diff = randInt(2, 7);
+          seq = [start, start + diff, start + 2*diff, start + 3*diff];
+          ans = start + 4*diff;
+          break;
+        }
+        case "geom": {
+          const start = randInt(1, 4);
+          const ratio = randInt(2, 4);
+          seq = [start, start*ratio, start*ratio*ratio, start*ratio*ratio*ratio];
+          ans = start * Math.pow(ratio, 4);
+          break;
+        }
+        case "squares": {
+          const offset = randInt(0, 3);
+          seq = [(1+offset)**2, (2+offset)**2, (3+offset)**2, (4+offset)**2];
+          ans = (5+offset)**2;
+          break;
+        }
+        case "cubes": {
+          seq = [1, 8, 27, 64];
+          ans = 125;
+          break;
+        }
+        case "fib": {
+          // start somewhere in the standard Fibonacci series for variety
+          const fibs = [1,1,2,3,5,8,13,21,34,55,89,144,233,377];
+          const start = randInt(0, 5);
+          seq = fibs.slice(start, start + 4);
+          ans = fibs[start + 4];
+          break;
+        }
+        case "tri": {
+          // triangular numbers: 1, 3, 6, 10, 15, 21, 28, ...
+          const offset = randInt(0, 3);
+          const tri = (k) => k * (k + 1) / 2;
+          seq = [tri(1+offset), tri(2+offset), tri(3+offset), tri(4+offset)];
+          ans = tri(5 + offset);
+          break;
+        }
+        case "pow2": {
+          const start = randInt(1, 4);
+          seq = [2**start, 2**(start+1), 2**(start+2), 2**(start+3)];
+          ans = 2**(start+4);
+          break;
+        }
+        case "primes": {
+          const idx = randInt(0, 5);
+          seq = PRIMES.slice(idx, idx + 4);
+          ans = PRIMES[idx + 4];
+          break;
+        }
+      }
+      return {
+        op,
+        display: `${seq.join(", ")}, ?`,
+        answer: ans
+      };
+    }
+    case "lineq": {
+      const cfg = rangeLineq(s);
+      const x = randInt(1, cfg.xMax);
+      const a = randInt(2, cfg.aMax);
+      const b = randInt(0, cfg.bMax);
+      const c = a * x + b;
+      const lhs = (a === 1 ? "<i>x</i>" : `${a}<i>x</i>`) + (b > 0 ? ` + ${b}` : "");
+      return {
+        op,
+        display: `<span class="q-def">solve for <i>x</i></span>${lhs} = ${c}`,
+        answer: x
+      };
+    }
+    case "quad": {
+      const cfg = rangeQuad(s);
+      const r1 = randInt(cfg.rMin, cfg.rMax);
+      const r2 = randInt(cfg.rMin, cfg.rMax);
+      const sum = r1 + r2;
+      const prod = r1 * r2;
+      const askLarger = Math.random() < 0.5;
+      const ans = askLarger ? Math.max(r1, r2) : Math.min(r1, r2);
+      const which = askLarger ? "larger" : "smaller";
+      return {
+        op,
+        display: `<span class="q-def"><i>x</i><sup>2</sup> − ${sum}<i>x</i> + ${prod} = 0</span>${which} root`,
+        answer: ans
+      };
     }
     case "choose": {
       const cfg = rangeChoose(s);
@@ -2330,7 +2722,7 @@ function startRound(durationOverride) {
     unlocksBefore: [...b.unlocks],
     bestBefore: b.bestScore,
     questionStart: 0,
-    timeLeft: durationOverride || ROUND_SECONDS,
+    timeLeft: durationOverride || modeRoundSeconds(),
     timerId: null,
     current: null,
     combo: 0,
@@ -2434,6 +2826,8 @@ function nextQuestion(skipAnim) {
   session.current = q;
   const qEl = document.getElementById("question");
   qEl.innerHTML = q.display;
+  // hard-mode questions render in a serif math face with italic variables
+  qEl.classList.toggle("math-mode", state.mode === "hard");
   qEl.classList.toggle("challenge", !!q.isChallenge);
   document.getElementById("challenge-flag").hidden = !q.isChallenge;
   if (!skipAnim) {
@@ -2627,7 +3021,8 @@ function endRound() {
   const avgWeight = correctCount
     ? (session.responses.reduce((a, r) => a + r.weight, 0) / correctCount).toFixed(2)
     : "0.00";
-  const dur = session.isEncore ? "1:00" : "2:00";
+  const fullDur = session.mode === "hard" ? "4:00" : "2:00";
+  const dur = session.isEncore ? "1:00" : fullDur;
   const tag = session.isEncore ? " encore" : "";
   document.getElementById("end-score-sub").textContent =
     `${correctCount} correct in ${dur}${tag} · avg ${avg}s · avg difficulty ${avgWeight}`;
