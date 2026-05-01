@@ -494,6 +494,99 @@
   }
   .velocity .up { color: var(--accent); }
   .velocity .down { color: #f87171; }
+
+  /* Top-scores list */
+  .top-scores {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .top-scores li {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 12px;
+    padding: 6px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--grid-line);
+  }
+  .top-scores li:last-child { border-bottom: none; }
+  .top-scores .rank { color: var(--muted); text-align: right; }
+  .top-scores .score { color: var(--fg); font-weight: 600; }
+  .top-scores .score.gold   { color: var(--accent); }
+  .top-scores .score.silver { color: #cbd5e1; }
+  .top-scores .score.bronze { color: #d4a373; }
+  .top-scores .date { color: var(--muted); font-size: 12px; }
+  .top-scores li.fresh {
+    background: var(--accent-soft);
+    margin: 0 -12px;
+    padding-left: 12px;
+    padding-right: 12px;
+    border-radius: 4px;
+  }
+
+  /* Comeback banner */
+  .comeback {
+    text-align: center;
+    color: var(--fg);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-mid);
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  /* Challenge question */
+  .challenge-flag {
+    text-align: center;
+    color: var(--near);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    margin-bottom: -10px;
+    margin-top: -4px;
+    text-transform: uppercase;
+    animation: challenge-pulse 1s ease-in-out infinite;
+  }
+  @keyframes challenge-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+  .question.challenge {
+    color: var(--near);
+    text-shadow: 0 0 16px rgba(250, 204, 21, 0.45);
+  }
+
+  /* Score pulse on correct */
+  .round-bar .score.bump { animation: score-bump 0.25s ease-out; }
+  @keyframes score-bump {
+    0% { transform: scale(1); }
+    45% { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+
+  /* Home insight (rotating fact: PRs, time-of-day, etc.) */
+  .home-insight {
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+    margin-top: 6px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.4;
+  }
+  .home-insight:empty { display: none; }
+
+  /* Tomorrow-target line on end screen */
+  .tomorrow {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    margin: 12px 0 -4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .tomorrow strong { color: var(--accent); }
   [hidden] { display: none !important; }
 
   @media (max-width: 600px) {
@@ -553,12 +646,20 @@
         <div class="stat"><span class="stat-label">Lifetime answered</span><span class="stat-value" id="stat-lifetime">0</span></div>
       </div>
       <div class="velocity" id="velocity"></div>
+      <div class="home-insight" id="home-insight"></div>
     </div>
 
     <div class="daily-challenge" id="daily-challenge" hidden>
       <span class="dc-title">today</span>
       <span class="dc-text" id="dc-text"></span>
       <span class="dc-progress" id="dc-progress"></span>
+    </div>
+
+    <div class="comeback" id="comeback-banner" hidden></div>
+
+    <div class="panel" id="top-scores-panel" hidden>
+      <div class="panel-title">Top scores</div>
+      <ol class="top-scores" id="top-scores"></ol>
     </div>
 
     <div class="panel">
@@ -597,6 +698,7 @@
         <span class="score" id="score">0.0</span>
       </div>
     </div>
+    <div class="challenge-flag" id="challenge-flag" hidden>⚡ challenge · 2×</div>
     <div class="question" id="question">&nbsp;</div>
     <div class="answer-wrap">
       <input class="answer" id="answer"
@@ -632,8 +734,10 @@
         <svg class="radar" id="radar-end" width="320" height="320" viewBox="0 0 320 320"></svg>
       </div>
     </div>
+    <div class="tomorrow" id="tomorrow-target" hidden></div>
     <div class="cta-row">
       <button type="button" class="cta" id="play-again-btn">Play again</button>
+      <button type="button" class="cta secondary" id="encore-btn">+60s encore</button>
       <button type="button" class="cta secondary" id="home-btn">Home</button>
     </div>
     <div class="start-prompt"><kbd>space</kbd> / <kbd>enter</kbd> to replay · <kbd>esc</kbd> for home</div>
@@ -654,12 +758,12 @@ const OP_NAME = {
   sq: "squares", pow: "powers", sqrt: "square roots", fact: "factorials"
 };
 const UNLOCK_TIERS = [
-  { op: "mul",  threshold: 25 },
-  { op: "div",  threshold: 35 },
-  { op: "sq",   threshold: 50 },
-  { op: "pow",  threshold: 60 },
-  { op: "sqrt", threshold: 65 },
-  { op: "fact", threshold: 75 },
+  { op: "mul",  threshold: 12 },
+  { op: "div",  threshold: 20 },
+  { op: "sq",   threshold: 30 },
+  { op: "pow",  threshold: 40 },
+  { op: "sqrt", threshold: 50 },
+  { op: "fact", threshold: 65 },
 ];
 const ROUND_SECONDS = 120;
 
@@ -806,6 +910,9 @@ const KEYS = {
   achievements: "zmac.achievements",
   dailyChallenge: "zmac.dailyChallenge",
   bestCombo: "zmac.bestCombo",
+  topScores: "zmac.topScores",
+  opPRs: "zmac.opPRs",
+  hourPlays: "zmac.hourPlays",
 };
 function safeGet(key, fallback) {
   try {
@@ -835,6 +942,9 @@ function loadState() {
     achievements: safeGet(KEYS.achievements, []),
     dailyChallenge: safeGet(KEYS.dailyChallenge, null),
     bestCombo: safeGet(KEYS.bestCombo, 0),
+    topScores: safeGet(KEYS.topScores, []),
+    opPRs: safeGet(KEYS.opPRs, {}),  // { add: { fastestMs, bestCombo, bestSessionScore } }
+    hourPlays: safeGet(KEYS.hourPlays, {}),  // { 8: { rounds, totalScore }, 14: {...} }
   };
   // ensure all 8 keys exist on skill
   for (const op of OPS) if (typeof s.skill[op] !== "number") s.skill[op] = 0;
@@ -858,6 +968,9 @@ function persistAll() {
   safeSet(KEYS.achievements, state.achievements);
   safeSet(KEYS.dailyChallenge, state.dailyChallenge);
   safeSet(KEYS.bestCombo, state.bestCombo);
+  safeSet(KEYS.topScores, state.topScores);
+  safeSet(KEYS.opPRs, state.opPRs);
+  safeSet(KEYS.hourPlays, state.hourPlays);
 }
 
 // ---------- date utils ----------
@@ -906,7 +1019,14 @@ function applyUnlocks() {
   }
   return newly;
 }
-function targetTimeMs(s) { return (1.5 + s / 50) * 1000; }
+// Target answer time: linear up to skill 100 (1.5s → 3.5s), then grows more
+// slowly past 100 because high-skill users face harder questions and need
+// more time. Hard cap at 6.5s so even at level 1000, a slow answer still
+// can't keep climbing skill.
+function targetTimeMs(s) {
+  if (s < 100) return (1.5 + s / 50) * 1000;
+  return Math.min(6500, 3500 + (s - 100) * 6);
+}
 
 // EMA-style rolling median per op for the speed-bonus baseline.
 // Init each op's median lazily on first answer; otherwise drift slowly so
@@ -929,43 +1049,104 @@ function updateMedian(op, t) {
 // row adds +0.5 to the score of subsequent answers, capped at +2.5 (combo 50).
 function comboBonus(combo) { return Math.min(2.5, Math.floor(combo / 10) * 0.5); }
 
+// Skill is uncapped — it can grow indefinitely so very advanced users keep
+// seeing harder questions. The radar visualisation clamps to 100; the
+// underlying number drives range expansion past that. Decay only at very
+// slow answers so one distracted tap doesn't roll skill back.
 function adjustSkill(op, ms) {
-  const t = targetTimeMs(state.skill[op]);
-  if (ms < t) state.skill[op] = Math.min(100, state.skill[op] + 1);
-  else if (ms > 2 * t) state.skill[op] = Math.max(0, state.skill[op] - 1);
+  const s = state.skill[op];
+  const t = targetTimeMs(s);
+  if (ms < t * 0.55)    state.skill[op] = s + 3;
+  else if (ms < t)      state.skill[op] = s + 2;
+  else if (ms > 3 * t)  state.skill[op] = Math.max(0, s - 1);
 }
 
 // ---------- question generators ----------
+// Range curves expand gently early, then keep climbing well past skill 100.
+// `lo` rises with skill so a level-200 user never sees `3 + 7` again — at
+// high skill, even the *smallest* operand is meaningfully large.
 function rangeAddSub(s) {
-  if (s < 10) return [1, 10];
-  if (s < 25) return [1, 25];
-  if (s < 50) return [1, 50];
-  if (s < 75) return [1, 100];
-  return [1, 200];
+  if (s < 5)   return [1,    10];
+  if (s < 15)  return [1,    25];
+  if (s < 25)  return [2,    50];
+  if (s < 40)  return [3,    100];
+  if (s < 60)  return [5,    200];
+  if (s < 80)  return [10,   350];
+  if (s < 100) return [15,   500];
+  if (s < 130) return [25,   800];
+  if (s < 160) return [50,   1500];
+  if (s < 200) return [100,  3000];
+  if (s < 250) return [200,  6000];
+  if (s < 300) return [400,  12000];
+  if (s < 400) return [800,  25000];
+  if (s < 500) return [1500, 50000];
+  if (s < 700) return [3000, 100000];
+  return        [5000, 250000];
 }
 function rangeMulDiv(s) {
-  if (s < 10) return [1, 5];
-  if (s < 25) return [1, 10];
-  if (s < 50) return [1, 12];
-  if (s < 75) return [1, 15];
-  return [1, 20];
+  if (s < 5)   return [1,   5];
+  if (s < 15)  return [1,   10];
+  if (s < 25)  return [2,   12];
+  if (s < 40)  return [2,   15];
+  if (s < 60)  return [3,   20];
+  if (s < 80)  return [3,   25];
+  if (s < 100) return [4,   30];
+  if (s < 130) return [5,   40];
+  if (s < 160) return [8,   60];
+  if (s < 200) return [12,  85];
+  if (s < 250) return [20,  120];
+  if (s < 300) return [30,  175];
+  if (s < 400) return [50,  250];
+  if (s < 500) return [75,  400];
+  return        [100, 600];
 }
 function rangeSq(s) {
-  if (s < 25) return [2, 10];
-  if (s < 50) return [2, 15];
-  return [2, 20];
+  if (s < 10)  return [2,   10];
+  if (s < 25)  return [2,   15];
+  if (s < 50)  return [2,   20];
+  if (s < 75)  return [3,   25];
+  if (s < 100) return [4,   30];
+  if (s < 150) return [8,   45];
+  if (s < 200) return [12,  60];
+  if (s < 300) return [18,  85];
+  if (s < 500) return [30,  120];
+  return        [50,  175];
 }
 function rangePow(s) {
-  if (s < 25) return { bases: [2, 3], exp: [2, 4] };
-  if (s < 50) return { bases: [2, 3, 4], exp: [2, 5] };
-  return { bases: [2, 3, 4, 5], exp: [2, 6] };
+  if (s < 5)   return { bases: [2, 3],                exp: [2, 4] };  // 4–81
+  if (s < 15)  return { bases: [2, 3, 4],             exp: [2, 5] };  // 4–1024
+  if (s < 30)  return { bases: [2, 3, 4, 5],          exp: [2, 5] };  // 4–3125
+  if (s < 50)  return { bases: [2, 3, 4, 5],          exp: [2, 6] };  // 4–15625
+  if (s < 75)  return { bases: [2, 3, 4, 5, 6],       exp: [2, 6] };  // 4–46656
+  if (s < 100) return { bases: [2, 3, 4, 5, 6, 7],    exp: [2, 6] };  // 4–117649
+  if (s < 150) return { bases: [3, 4, 5, 6, 7, 8, 9], exp: [3, 6] };  // 27–531441
+  if (s < 200) return { bases: [4, 5, 6, 7, 8, 9, 10, 11], exp: [3, 6] };
+  if (s < 300) return { bases: [5, 6, 7, 8, 9, 10, 11, 12, 13], exp: [3, 6] };
+  if (s < 500) return { bases: [7, 8, 9, 10, 11, 12, 13, 14, 15], exp: [3, 5] };
+  return        { bases: [9, 11, 13, 15, 17, 19, 21], exp: [3, 5] };
 }
 function rangeSqrt(s) {
-  if (s < 25) return [2, 12];
-  if (s < 50) return [2, 16];
-  return [2, 20];
+  if (s < 10)  return [2,   12];
+  if (s < 25)  return [2,   18];
+  if (s < 50)  return [2,   25];
+  if (s < 75)  return [3,   35];
+  if (s < 100) return [4,   50];
+  if (s < 150) return [8,   75];
+  if (s < 200) return [12,  100];
+  if (s < 300) return [20,  150];
+  if (s < 500) return [40,  225];
+  return        [75,  350];
 }
-function rangeFact() { return [1, 6]; }
+// Factorials are bounded by typeable answers (10! = 3,628,800). Beyond skill
+// 200 we restrict to the larger end of the range so the user doesn't get 1!
+// or 2! as a freebie.
+function rangeFact(s) {
+  if (s < 50)  return [1, 6];
+  if (s < 100) return [2, 7];
+  if (s < 200) return [3, 8];
+  if (s < 350) return [4, 9];
+  return        [5, 10];
+}
 
 function makeQuestion(op) {
   const s = state.skill[op];
@@ -1012,7 +1193,7 @@ function makeQuestion(op) {
       return { op, display: `√${n * n}`, answer: n };
     }
     case "fact": {
-      const [lo, hi] = rangeFact();
+      const [lo, hi] = rangeFact(s);
       const n = randInt(lo, hi);
       return { op, display: `${n}!`, answer: factorial(n) };
     }
@@ -1021,9 +1202,13 @@ function makeQuestion(op) {
 
 function pickOp() {
   if (state.unlocks.length === 1) return state.unlocks[0];
-  // 30% uniform; 70% weighted toward weak
-  if (Math.random() < 0.3) return pick(state.unlocks);
-  const weights = state.unlocks.map(op => 1 / (1 + state.skill[op] / 25));
+  // 40% uniform (so strong ops still rotate in regularly);
+  // 60% weighted toward weak, but gentler curve than before so a high-skill
+  // op doesn't disappear from rotation entirely.
+  if (Math.random() < 0.4) return pick(state.unlocks);
+  // skill clamped to 100 for the bias curve so a level-300 op doesn't
+  // approach zero weight and disappear from rotation entirely.
+  const weights = state.unlocks.map(op => 1 / (1 + Math.min(100, state.skill[op]) / 40));
   const total = weights.reduce((a, b) => a + b, 0);
   let r = Math.random() * total;
   for (let i = 0; i < state.unlocks.length; i++) {
@@ -1033,15 +1218,28 @@ function pickOp() {
   return state.unlocks[state.unlocks.length - 1];
 }
 
-// ---------- polygon area (single scalar skill summary) ----------
+// ---------- single scalar skill summary ----------
+// We want one number that summarises overall skill across all 8 operators.
+// The geometric "polygon area" formula (sum of adjacent r[i]*r[i+1] triangles)
+// is intuitive for a radar but has a flaw: an operator surrounded by two
+// zero-neighbours contributes 0 to the area regardless of its own value, so
+// e.g. growing `pow` (between `sq` and `sqrt` in OPS order) does nothing to
+// the trend line until its neighbours are also non-zero. That's a real bug
+// from the user's perspective.
+//
+// Instead we use sum of squared radii. This is the radar-shape's polar
+// "moment of inertia about the centre" — every operator contributes
+// monotonically, growing any single skill is always rewarded, and balanced
+// growth is still favoured (because squaring rewards spreading effort).
+// Renamed `polygonArea` left as-is for callsite stability.
 function polygonArea(skill) {
-  const r = OPS.map(op => skill[op] || 0);
-  const n = r.length;
-  let sum = 0;
-  for (let i = 0; i < n; i++) sum += r[i] * r[(i + 1) % n];
-  return 0.5 * Math.sin((2 * Math.PI) / n) * sum;
+  // clamp each spoke to 100 for the area metric so the chart still maxes at
+  // 100 even after skills grow into the hundreds — past that, growth is
+  // expressed via harder questions rather than a runaway chart.
+  const r = OPS.map(op => Math.min(100, skill[op] || 0));
+  return r.reduce((s, v) => s + v * v, 0);
 }
-const A_MAX = 0.5 * 8 * 100 * 100 * Math.sin(Math.PI / 4); // ~28284
+const A_MAX = 8 * 100 * 100; // 80000 — all 8 ops at 100
 function areaNorm(skill) {
   return Math.round((polygonArea(skill) / A_MAX) * 1000) / 10; // 0–100, 1 dp
 }
@@ -1130,12 +1328,17 @@ function renderRadar(svgEl, skillNow, skillPrev) {
     g += `<text class="${cls}" x="${lx}" y="${ly}">${label}</text>`;
   }
 
+  // radius is clamped to R (skill 100) — past 100, the polygon vertex stays
+  // at the outer ring. Continued progression is expressed via harder
+  // questions, not a runaway radar.
+  const radarRadius = (sv) => Math.min(100, sv || 0) / 100 * R;
+
   // previous polygon (ghost)
   if (skillPrev) {
     let pts = "";
     for (let i = 0; i < n; i++) {
       const a = -Math.PI / 2 + (i / n) * 2 * Math.PI;
-      const v = (skillPrev[OPS[i]] || 0) / 100 * R;
+      const v = radarRadius(skillPrev[OPS[i]]);
       pts += `${cx + v * Math.cos(a)},${cy + v * Math.sin(a)} `;
     }
     g += `<polygon class="poly-prev" points="${pts.trim()}" />`;
@@ -1145,7 +1348,7 @@ function renderRadar(svgEl, skillNow, skillPrev) {
   let pts = "";
   for (let i = 0; i < n; i++) {
     const a = -Math.PI / 2 + (i / n) * 2 * Math.PI;
-    const v = (skillNow[OPS[i]] || 0) / 100 * R;
+    const v = radarRadius(skillNow[OPS[i]]);
     pts += `${cx + v * Math.cos(a)},${cy + v * Math.sin(a)} `;
   }
   g += `<polygon class="poly-now" points="${pts.trim()}" />`;
@@ -1155,7 +1358,7 @@ function renderRadar(svgEl, skillNow, skillPrev) {
     const op = OPS[i];
     if (!state.unlocks.includes(op) || (skillNow[op] || 0) === 0) continue;
     const a = -Math.PI / 2 + (i / n) * 2 * Math.PI;
-    const v = skillNow[op] / 100 * R;
+    const v = radarRadius(skillNow[op]);
     g += `<circle class="vertex" cx="${cx + v * Math.cos(a)}" cy="${cy + v * Math.sin(a)}" r="3" />`;
   }
 
@@ -1358,6 +1561,119 @@ function adjustStreakOnLoad() {
   if (diff >= 2) state.streak.current = 0;
 }
 
+// ---------- top scores / per-op PRs / hour pattern / tomorrow target ----------
+
+// Insert a session score into the top-10 list. Returns the rank (1-based) if
+// it made the list, otherwise null.
+function recordTopScore(score, date) {
+  const entry = { score, date, fresh: true };
+  // clear previous "fresh" flags so only the just-added one is highlighted
+  for (const e of state.topScores) delete e.fresh;
+  const list = state.topScores.slice();
+  list.push(entry);
+  list.sort((a, b) => b.score - a.score);
+  state.topScores = list.slice(0, 10);
+  const rank = state.topScores.indexOf(entry) + 1;
+  return rank > 0 ? rank : null;
+}
+
+function updateOpPRs(session) {
+  // Track fastest single answer, longest in-row run, and best per-op session
+  // score for each operator the user touched this round.
+  const byOp = {};
+  let runOp = null, run = 0;
+  const runByOp = {};
+  for (const r of session.responses) {
+    if (!byOp[r.op]) byOp[r.op] = { fastest: Infinity, count: 0, scoreSum: 0 };
+    byOp[r.op].fastest = Math.min(byOp[r.op].fastest, r.t);
+    byOp[r.op].count++;
+    byOp[r.op].scoreSum += (r.earned || r.weight || 0);
+    if (r.op === runOp) run++;
+    else { runOp = r.op; run = 1; }
+    runByOp[r.op] = Math.max(runByOp[r.op] || 0, run);
+  }
+  for (const op of Object.keys(byOp)) {
+    if (!state.opPRs[op]) state.opPRs[op] = { fastestMs: Infinity, bestRun: 0, bestSessionScore: 0 };
+    const pr = state.opPRs[op];
+    if (byOp[op].fastest < pr.fastestMs) pr.fastestMs = byOp[op].fastest;
+    if ((runByOp[op] || 0) > pr.bestRun) pr.bestRun = runByOp[op];
+    if (byOp[op].scoreSum > pr.bestSessionScore) pr.bestSessionScore = byOp[op].scoreSum;
+  }
+}
+
+function updateHourPlays(session) {
+  const h = new Date().getHours();
+  if (!state.hourPlays[h]) state.hourPlays[h] = { rounds: 0, totalScore: 0 };
+  state.hourPlays[h].rounds += 1;
+  state.hourPlays[h].totalScore += session.score;
+}
+
+function bestHour() {
+  // Need a reasonable sample size before claiming a pattern
+  const totalRounds = Object.values(state.hourPlays).reduce((a, h) => a + h.rounds, 0);
+  if (totalRounds < 14) return null;
+  const hours = Object.entries(state.hourPlays).map(([h, d]) => ({
+    h: parseInt(h, 10),
+    avg: d.totalScore / Math.max(1, d.rounds),
+    rounds: d.rounds,
+  })).filter(x => x.rounds >= 2);
+  if (hours.length < 2) return null;
+  hours.sort((a, b) => b.avg - a.avg);
+  return hours[0];
+}
+
+function fmtHour(h) {
+  if (h === 0) return "midnight";
+  if (h === 12) return "noon";
+  if (h < 12) return `${h} AM`;
+  return `${h - 12} PM`;
+}
+
+// Use a stable median × 1.05 over the user's last 5 sessions as tomorrow's
+// reach goal. Returns null until there's enough history to be meaningful.
+function tomorrowTargetScore() {
+  const recent = state.history.slice(-5).map(h => h.score).filter(s => s > 0);
+  if (recent.length < 3) return null;
+  const sorted = recent.slice().sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  return Math.round(median * 1.05 * 10) / 10;
+}
+
+function comebackText() {
+  const last = state.streak.lastDate;
+  if (!last) return null;
+  const diff = daysBetween(last, todayKey());
+  if (diff <= 2) return null;
+  return `welcome back — ${diff} days since your last round.`;
+}
+
+// Pick one fun-fact line for the home dashboard. Variable across sessions.
+function pickHomeInsight() {
+  const pool = [];
+  if (state.topScores.length > 0) {
+    pool.push(`peak score: ${fmtScore(state.topScores[0].score)} on ${state.topScores[0].date}`);
+  }
+  const bh = bestHour();
+  if (bh) pool.push(`you score best around ${fmtHour(bh.h)}`);
+  // per-op records
+  const opEntries = Object.entries(state.opPRs);
+  for (const [op, prs] of opEntries) {
+    if (prs.fastestMs && isFinite(prs.fastestMs)) {
+      pool.push(`fastest ${OP_NAME[op]}: ${(prs.fastestMs/1000).toFixed(2)}s`);
+    }
+    if (prs.bestRun && prs.bestRun >= 4) {
+      pool.push(`longest ${OP_NAME[op]} streak: ${prs.bestRun} in a row`);
+    }
+  }
+  // total investment
+  const activeDays = Object.keys(state.daily).length;
+  if (state.totalAnswered >= 50 && activeDays >= 1) {
+    pool.push(`${state.totalAnswered.toLocaleString()} questions answered across ${activeDays} day${activeDays === 1 ? "" : "s"}`);
+  }
+  if (pool.length === 0) return "";
+  return pick(pool);
+}
+
 // ---------- session insight ----------
 function buildInsight(session) {
   const { responses, score, perOpDelta, prevSkill, bestCombo } = session;
@@ -1471,6 +1787,34 @@ function renderHome() {
   renderHeatmap(document.getElementById("heatmap"));
   renderVelocity();
   renderDailyChallenge();
+  renderHomeInsight();
+  renderComeback();
+  renderTopScores();
+}
+
+function renderHomeInsight() {
+  document.getElementById("home-insight").textContent = pickHomeInsight();
+}
+
+function renderComeback() {
+  const el = document.getElementById("comeback-banner");
+  const txt = comebackText();
+  if (!txt) { el.hidden = true; return; }
+  el.hidden = false;
+  el.textContent = txt;
+}
+
+function renderTopScores() {
+  const ol = document.getElementById("top-scores");
+  const panel = document.getElementById("top-scores-panel");
+  if (!state.topScores.length) { panel.hidden = true; return; }
+  panel.hidden = false;
+  ol.innerHTML = "";
+  state.topScores.forEach((entry, i) => {
+    const cls = i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
+    const fresh = entry.fresh ? "fresh" : "";
+    ol.innerHTML += `<li class="${fresh}"><span class="rank">${i+1}</span><span class="score ${cls}">${fmtScore(entry.score)}</span><span class="date">${entry.date}</span></li>`;
+  });
 }
 
 function renderVelocity() {
@@ -1501,7 +1845,7 @@ function renderDailyChallenge() {
 }
 
 // ---------- round ----------
-function startRound() {
+function startRound(durationOverride) {
   ensureAudioCtx();
   if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
 
@@ -1514,11 +1858,12 @@ function startRound() {
     unlocksBefore: [...state.unlocks],
     bestBefore: state.bestScore,
     questionStart: 0,
-    timeLeft: ROUND_SECONDS,
+    timeLeft: durationOverride || ROUND_SECONDS,
     timerId: null,
     current: null,
     combo: 0,
     bestCombo: 0,
+    isEncore: !!durationOverride,
   };
   setScreen("round");
   updateTimer();
@@ -1558,6 +1903,11 @@ function updateScore(immediate) {
     el.textContent = fmtScore(session.score);
     return;
   }
+  // bump pulse on every increment (visual confirmation of the gain)
+  el.classList.remove("bump");
+  void el.offsetWidth;
+  el.classList.add("bump");
+  setTimeout(() => el.classList.remove("bump"), 280);
   const from = session.displayedScore;
   const to = session.score;
   if (session.scoreAnimId) cancelAnimationFrame(session.scoreAnimId);
@@ -1598,9 +1948,15 @@ function updatePbBar() {
 function nextQuestion(skipAnim) {
   const op = pickOp();
   const q = makeQuestion(op);
+  // 5% of questions are tagged as challenges with a 2× score multiplier.
+  // Visible cue (orange flag + glowing question text) makes it feel earned,
+  // not random. Variable reward kernel.
+  q.isChallenge = Math.random() < 0.05;
   session.current = q;
   const qEl = document.getElementById("question");
   qEl.innerHTML = q.display;
+  qEl.classList.toggle("challenge", !!q.isChallenge);
+  document.getElementById("challenge-flag").hidden = !q.isChallenge;
   if (!skipAnim) {
     qEl.classList.remove("changing");
     // force reflow so the animation re-runs
@@ -1647,7 +2003,8 @@ function onAnswerInput() {
   session.bestCombo = Math.max(session.bestCombo, session.combo);
   state.bestCombo = Math.max(state.bestCombo, session.combo);
   const cb = comboBonus(session.combo);
-  const earned = w * sb + cb;
+  const challengeMul = session.current.isChallenge ? 2 : 1;
+  const earned = (w * sb + cb) * challengeMul;
 
   session.responses.push({ op, t: elapsed, weight: w, multiplier: sb, comboBonus: cb, earned });
   adjustSkill(op, elapsed);
@@ -1657,11 +2014,12 @@ function onAnswerInput() {
   applyUnlocks();
 
   // dopamine layer
-  tick(sb >= 1.25 ? 1100 : 880);
+  tick(session.current.isChallenge ? 1320 : (sb >= 1.25 ? 1100 : 880));
   flashBg();
   let label = `+${earned.toFixed(1)}`;
   let kind = null;
-  if (sb >= 1.5) { label = `⚡ +${earned.toFixed(1)}`; kind = "fast"; }
+  if (session.current.isChallenge) { label = `⚡⚡ +${earned.toFixed(1)}`; kind = "bonus"; }
+  else if (sb >= 1.5) { label = `⚡ +${earned.toFixed(1)}`; kind = "fast"; }
   else if (sb >= 1.25) { label = `+${earned.toFixed(1)}`; kind = "fast"; }
   else if (cb > 0) { label = `+${earned.toFixed(1)}`; kind = "bonus"; }
   spawnFloater(label, kind);
@@ -1720,6 +2078,11 @@ function endRound() {
   // streak
   updateStreakAfterPlay();
 
+  // top-10 scores leaderboard, per-op PRs, hour-of-day pattern
+  const topScoreRank = recordTopScore(session.score, today);
+  updateOpPRs(session);
+  updateHourPlays(session);
+
   // daily challenge progress
   const dailyChallengeJustCompleted = updateDailyChallenge(session);
 
@@ -1742,8 +2105,10 @@ function endRound() {
   const avgWeight = correctCount
     ? (session.responses.reduce((a, r) => a + r.weight, 0) / correctCount).toFixed(2)
     : "0.00";
+  const dur = session.isEncore ? "1:00" : "2:00";
+  const tag = session.isEncore ? " encore" : "";
   document.getElementById("end-score-sub").textContent =
-    `${correctCount} correct in 2:00 · avg ${avg}s · avg difficulty ${avgWeight}`;
+    `${correctCount} correct in ${dur}${tag} · avg ${avg}s · avg difficulty ${avgWeight}`;
   document.getElementById("new-best").hidden = !newBest;
 
   const ub = document.getElementById("unlock-banner");
@@ -1797,6 +2162,18 @@ function endRound() {
   // end-screen radar with ghost = pre-session skill
   renderRadar(document.getElementById("radar-end"), state.skill, session.skillBefore);
 
+  // tomorrow target line — small primer for next-day intent
+  const tt = tomorrowTargetScore();
+  const ttEl = document.getElementById("tomorrow-target");
+  if (tt) {
+    ttEl.hidden = false;
+    let lead = "tomorrow";
+    if (topScoreRank && topScoreRank <= 3) lead = `top-${topScoreRank} score · tomorrow`;
+    ttEl.innerHTML = `${lead}: aim for <strong>${fmtScore(tt)}</strong>`;
+  } else {
+    ttEl.hidden = true;
+  }
+
   setScreen("end");
   // also refresh the home dashboard so it's ready when user goes back
   renderHome();
@@ -1846,8 +2223,9 @@ function safeTap(el, handler) {
   el.addEventListener("click", fire);
   el.addEventListener("pointerup", fire);
 }
-safeTap(document.getElementById("start-btn"), startRound);
-safeTap(document.getElementById("play-again-btn"), startRound);
+safeTap(document.getElementById("start-btn"), () => startRound());
+safeTap(document.getElementById("play-again-btn"), () => startRound());
+safeTap(document.getElementById("encore-btn"), () => startRound(60));
 safeTap(document.getElementById("home-btn"), () => {
   setScreen("home");
   renderHome();
