@@ -1904,6 +1904,7 @@ function startRound(durationOverride) {
     isEncore: !!durationOverride,
     lastCorrectAt: null,
     rushDecayId: null,
+    flowChain: 0,
   };
   // clear any leftover rush glow from a previous session
   setRushGlow(0);
@@ -2066,16 +2067,17 @@ function onAnswerInput() {
   const challengeMul = session.current.isChallenge ? 2 : 1;
   const earned = (w * sb + cb) * challengeMul;
 
-  // Rush factor — how tight the cadence is between consecutive correct
-  // answers. Drives layered audio harmonics and visual intensity.
-  // delta ≤ 0.6s → rush 1.0 (max chord, max glow); delta ≥ 3.5s → rush 0.
-  let rush = 0;
-  if (session.lastCorrectAt != null) {
-    const delta = now - session.lastCorrectAt;
-    if (delta <= 600) rush = 1;
-    else if (delta >= 3500) rush = 0;
-    else rush = 1 - (delta - 600) / 2900;
+  // Rush factor — chain-based, gated at 2s per answer. The longer you
+  // sustain sub-2s answers in a row, the higher rush climbs. One slow
+  // answer (≥ 2s) breaks the chain and rush resets. Reaches max at an
+  // 8-in-a-row sub-2s streak; harmonics kick in at chain 3 and 6.
+  const FLOW_GATE_MS = 2000;
+  if (elapsed < FLOW_GATE_MS) {
+    session.flowChain = (session.flowChain || 0) + 1;
+  } else {
+    session.flowChain = 0;
   }
+  const rush = Math.min(1, session.flowChain / 8);
   session.lastCorrectAt = now;
 
   session.responses.push({ op, t: elapsed, weight: w, multiplier: sb, comboBonus: cb, earned });
