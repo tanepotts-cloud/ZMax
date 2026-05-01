@@ -1,0 +1,1755 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Arithmetic">
+<meta name="theme-color" content="#0e1116">
+<link rel="apple-touch-icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180"><rect width="180" height="180" rx="40" fill="%230e1116"/><text x="50%25" y="58%25" font-family="ui-monospace,Menlo,monospace" font-size="96" font-weight="700" fill="%23f97316" text-anchor="middle" dominant-baseline="middle">%CE%A3</text></svg>'>
+<link rel="icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="%230e1116"/><text x="50%25" y="60%25" font-family="ui-monospace" font-size="20" font-weight="700" fill="%23f97316" text-anchor="middle" dominant-baseline="middle">%CE%A3</text></svg>'>
+<title>Personal Arithmetic</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --fg: #e6edf3;
+    --muted: #7d8590;
+    --accent: #f97316;
+    --accent-soft: rgba(249,115,22,0.15);
+    --accent-mid: rgba(249,115,22,0.45);
+    --accent-2: #60a5fa;
+    --accent-2-soft: rgba(96,165,250,0.18);
+    --grid-line: #21262d;
+    --good: #f97316;
+    --near: #facc15;
+    --bucket-0: #1f2328;
+    --bucket-1: rgba(249,115,22,0.22);
+    --bucket-2: rgba(249,115,22,0.42);
+    --bucket-3: rgba(249,115,22,0.68);
+    --bucket-4: rgba(249,115,22,1.0);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 28px 24px 80px;
+  }
+  h1 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin: 0 0 24px;
+    color: var(--fg);
+  }
+  h1 .dot { color: var(--accent); }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--grid-line);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .panel-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin: 0 0 12px;
+    font-weight: 600;
+  }
+  .stats-row {
+    display: flex;
+    gap: 24px;
+    margin: 16px 0;
+    flex-wrap: wrap;
+  }
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .stat-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+  .stat-value {
+    font-size: 22px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-value.accent { color: var(--accent); }
+  .pool-line {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 8px 0 16px;
+    font-variant-numeric: tabular-nums;
+  }
+  .start-prompt {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 10px;
+    text-align: center;
+  }
+  .start-prompt kbd {
+    background: var(--panel);
+    border: 1px solid var(--grid-line);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 12px;
+    color: var(--fg);
+    margin: 0 2px;
+  }
+  .cta-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 24px 0 6px;
+    flex-wrap: wrap;
+  }
+  .cta {
+    background: var(--accent);
+    color: #0e1116;
+    border: none;
+    border-radius: 10px;
+    font: inherit;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 0.04em;
+    padding: 14px 36px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.05s ease, filter 0.15s;
+    min-width: 200px;
+    text-transform: uppercase;
+  }
+  .cta:hover { filter: brightness(1.1); }
+  .cta:active { transform: scale(0.98); }
+  .cta.secondary {
+    background: var(--panel);
+    color: var(--fg);
+    border: 1px solid var(--grid-line);
+    text-transform: none;
+    font-weight: 500;
+    letter-spacing: 0;
+    min-width: 0;
+    padding: 12px 22px;
+  }
+  .cta.tiny {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--grid-line);
+    text-transform: none;
+    font-weight: 500;
+    letter-spacing: 0;
+    min-width: 0;
+    padding: 6px 14px;
+    font-size: 12px;
+  }
+  .cta.tiny:hover { color: var(--fg); }
+  .footer {
+    margin-top: 28px;
+    color: var(--muted);
+    font-size: 12px;
+    display: flex;
+    gap: 18px;
+    justify-content: center;
+  }
+  .footer a, .footer button {
+    color: var(--muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+    text-decoration: underline dotted;
+  }
+  .footer a:hover, .footer button:hover { color: var(--fg); }
+
+  /* Radar */
+  .radar-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 4px 0;
+  }
+  svg.radar { display: block; width: 100%; max-width: 320px; height: auto; }
+  .radar .ring { fill: none; stroke: var(--grid-line); stroke-width: 1; }
+  .radar .spoke { stroke: var(--grid-line); stroke-width: 1; }
+  .radar .label {
+    fill: var(--muted);
+    font-size: 12px;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    font-variant-numeric: tabular-nums;
+  }
+  .radar .label.locked { opacity: 0.45; }
+  .radar .label.next { fill: var(--accent); opacity: 0.85; }
+  .radar .poly-now { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+  .radar .poly-prev { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.55; }
+  .radar .vertex { fill: var(--accent); }
+
+  /* Trend chart */
+  .trend-wrap { padding: 4px 0; }
+  svg.trend { display: block; width: 100%; height: 140px; }
+  .trend .gridline { stroke: var(--grid-line); stroke-width: 1; stroke-dasharray: 2 4; }
+  .trend .axis { stroke: var(--grid-line); stroke-width: 1; }
+  .trend .line { fill: none; stroke: var(--accent); stroke-width: 2; }
+  .trend .area-fill { fill: var(--accent-soft); }
+  .trend .point { fill: var(--accent); }
+  .trend .line-2 { fill: none; stroke: var(--accent-2); stroke-width: 1.5; stroke-dasharray: 4 3; }
+  .trend .point-2 { fill: var(--accent-2); }
+  .trend .axis-label { fill: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+  .trend .axis-label.right { fill: var(--accent-2); opacity: 0.8; }
+  .trend .axis-label.left  { fill: var(--accent);   opacity: 0.8; }
+  .trend .legend { font-size: 10px; font-variant-numeric: tabular-nums; }
+  .trend-empty {
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 36px 0;
+  }
+
+  /* Heatmap */
+  .heatmap {
+    display: grid;
+    grid-template-columns: repeat(18, 1fr);
+    grid-template-rows: repeat(7, 1fr);
+    gap: 3px;
+    width: 100%;
+    aspect-ratio: 18 / 7;
+  }
+  .heatmap .cell {
+    background: var(--bucket-0);
+    border-radius: 2px;
+    width: 100%;
+    height: 100%;
+    transition: outline 0.1s;
+  }
+  .heatmap .cell.future { background: transparent; border: 1px dashed var(--grid-line); }
+  .heatmap .cell.b1 { background: var(--bucket-1); }
+  .heatmap .cell.b2 { background: var(--bucket-2); }
+  .heatmap .cell.b3 { background: var(--bucket-3); }
+  .heatmap .cell.b4 { background: var(--bucket-4); }
+  .heatmap .cell.today { outline: 1.5px solid var(--accent); outline-offset: 1px; }
+  .heatmap-legend {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 10px;
+    justify-content: flex-end;
+  }
+  .heatmap-legend .swatch {
+    width: 10px; height: 10px; border-radius: 2px;
+  }
+
+  /* Round screen */
+  .round-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--muted);
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 32px;
+    gap: 12px;
+  }
+  .round-bar .timer { font-size: 20px; font-weight: 600; color: var(--fg); transition: color 0.2s; }
+  .round-bar .timer.urgent { color: var(--accent); animation: pulse 1s ease-in-out infinite; }
+  .round-bar .right-cluster { display: flex; align-items: center; gap: 14px; }
+  .round-bar .combo {
+    font-size: 13px;
+    color: var(--muted);
+    opacity: 0;
+    transition: opacity 0.2s, color 0.2s;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+  }
+  .round-bar .combo.show { opacity: 1; }
+  .round-bar .combo.hot { color: var(--accent); font-weight: 600; }
+  .round-bar .score { font-size: 20px; font-weight: 600; color: var(--fg); }
+  .round-bar .score.near { color: var(--near); }
+  .round-bar .score.beat { color: var(--accent); }
+  .round-bar .pb-bar {
+    height: 2px;
+    background: var(--accent);
+    margin-top: 4px;
+    border-radius: 1px;
+    transition: width 0.25s ease-out;
+    width: 0%;
+    max-width: 100%;
+  }
+  .round-bar .pb-bar-wrap {
+    width: 80px;
+    height: 2px;
+    background: var(--grid-line);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+  /* full-screen subliminal flash on correct */
+  .flash-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 999;
+    background: radial-gradient(circle at center, var(--accent-soft) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.18s ease-out;
+  }
+  .flash-layer.on { opacity: 1; transition-duration: 0.04s; }
+
+  /* floating "+W" feedback above the input */
+  .answer-wrap { position: relative; }
+  .floater {
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    transform: translateX(-50%);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--accent);
+    pointer-events: none;
+    opacity: 0;
+    animation: floater 0.85s ease-out;
+    white-space: nowrap;
+  }
+  .floater.bonus { color: var(--near); }
+  .floater.fast { color: var(--accent-2); }
+  @keyframes floater {
+    0% { opacity: 0; transform: translate(-50%, 8px); }
+    20% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -36px); }
+  }
+  .question {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 84px;
+    font-weight: 500;
+    text-align: center;
+    margin: 32px 0 24px;
+    letter-spacing: 0.01em;
+    line-height: 1;
+  }
+  .question.changing { animation: q-slide 0.18s ease-out; }
+  @keyframes q-slide {
+    from { transform: translateY(8px); opacity: 0; }
+    to   { transform: translateY(0);   opacity: 1; }
+  }
+  .question sup {
+    font-size: 0.55em;
+    line-height: 0;
+    vertical-align: super;
+    margin-left: 0.05em;
+  }
+  .answer-wrap { display: flex; justify-content: center; }
+  input.answer {
+    background: var(--panel);
+    color: var(--fg);
+    border: 1px solid var(--grid-line);
+    border-radius: 8px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 36px;
+    text-align: center;
+    width: 240px;
+    padding: 12px 16px;
+    outline: none;
+    caret-color: var(--accent);
+  }
+  input.answer:focus { border-color: var(--accent); }
+
+  /* End screen */
+  .end-score {
+    text-align: center;
+    margin: 24px 0 8px;
+  }
+  .end-score .big {
+    font-size: 64px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .end-score .sub {
+    color: var(--muted);
+    font-size: 14px;
+    margin-top: 8px;
+  }
+  .end-score .new-best {
+    color: var(--accent);
+    font-weight: 600;
+    margin-top: 6px;
+    letter-spacing: 0.02em;
+  }
+  .deltas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 18px;
+    justify-content: center;
+    margin: 18px 0;
+    color: var(--muted);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+  .deltas .d.pos { color: var(--accent); }
+  .deltas .d.neg { color: #f87171; }
+  .insight {
+    text-align: center;
+    color: var(--fg);
+    font-size: 15px;
+    padding: 14px 18px;
+    background: var(--accent-soft);
+    border-radius: 8px;
+    margin: 16px 0;
+    line-height: 1.4;
+  }
+  .unlock-banner {
+    text-align: center;
+    color: var(--accent);
+    font-weight: 600;
+    margin: 12px 0;
+    letter-spacing: 0.02em;
+  }
+  .achievement-toasts {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    margin: 8px 0 4px;
+  }
+  .achievement-toast {
+    background: linear-gradient(90deg, var(--accent-soft), transparent);
+    border-left: 2px solid var(--accent);
+    padding: 6px 14px;
+    border-radius: 4px;
+    color: var(--fg);
+    font-size: 13px;
+    letter-spacing: 0.02em;
+  }
+  .achievement-toast .star { color: var(--accent); margin-right: 6px; }
+
+  /* Daily challenge panel */
+  .daily-challenge {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    background: var(--panel);
+    border: 1px solid var(--grid-line);
+    border-radius: 10px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .daily-challenge .dc-title {
+    color: var(--muted);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    margin-right: 4px;
+  }
+  .daily-challenge .dc-text { color: var(--fg); flex: 1; }
+  .daily-challenge .dc-progress { color: var(--accent); font-variant-numeric: tabular-nums; font-weight: 600; }
+  .daily-challenge.completed { border-color: var(--accent); }
+  .daily-challenge.completed .dc-progress::after { content: " ✓"; }
+  .velocity {
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+    margin-top: -8px;
+    margin-bottom: 16px;
+    font-variant-numeric: tabular-nums;
+  }
+  .velocity .up { color: var(--accent); }
+  .velocity .down { color: #f87171; }
+  [hidden] { display: none !important; }
+
+  @media (max-width: 600px) {
+    .question { font-size: 56px; }
+    input.answer { font-size: 28px; width: 180px; }
+    main { padding: 20px 16px 60px; }
+    .end-score .big { font-size: 48px; }
+  }
+</style>
+</head>
+<body>
+<div class="flash-layer" id="flash-layer"></div>
+<main>
+  <h1>Personal Arithmetic<span class="dot">.</span></h1>
+
+  <!-- HOME -->
+  <section id="home">
+    <div class="panel">
+      <div class="panel-title">Skill</div>
+      <div class="radar-wrap">
+        <svg class="radar" id="radar" width="320" height="320" viewBox="0 0 320 320"></svg>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Skill area over time</div>
+      <div class="trend-wrap" id="trend-wrap">
+        <svg class="trend" id="trend" viewBox="0 0 600 140" preserveAspectRatio="none"></svg>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Stats</div>
+      <div class="stats-row">
+        <div class="stat"><span class="stat-label">Best score</span><span class="stat-value accent" id="stat-best">0</span></div>
+        <div class="stat"><span class="stat-label">Streak</span><span class="stat-value" id="stat-streak">0</span></div>
+        <div class="stat"><span class="stat-label">Longest streak</span><span class="stat-value" id="stat-longest">0</span></div>
+        <div class="stat"><span class="stat-label">Lifetime answered</span><span class="stat-value" id="stat-lifetime">0</span></div>
+      </div>
+      <div class="velocity" id="velocity"></div>
+    </div>
+
+    <div class="daily-challenge" id="daily-challenge" hidden>
+      <span class="dc-title">today</span>
+      <span class="dc-text" id="dc-text"></span>
+      <span class="dc-progress" id="dc-progress"></span>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Consistency · last 4 months</div>
+      <div class="heatmap" id="heatmap"></div>
+      <div class="heatmap-legend">
+        <span>less</span>
+        <span class="swatch" style="background: var(--bucket-0)"></span>
+        <span class="swatch" style="background: var(--bucket-1)"></span>
+        <span class="swatch" style="background: var(--bucket-2)"></span>
+        <span class="swatch" style="background: var(--bucket-3)"></span>
+        <span class="swatch" style="background: var(--bucket-4)"></span>
+        <span>more</span>
+      </div>
+    </div>
+
+    <div class="pool-line" id="pool-line"></div>
+    <div class="cta-row">
+      <button class="cta" id="start-btn">Start round</button>
+    </div>
+    <div class="start-prompt">tap, or press <kbd>space</kbd> / <kbd>enter</kbd></div>
+
+    <div class="footer">
+      <button id="audio-toggle" title="Toggle answer-tick sound">audio: off</button>
+      <button id="reset-btn" title="Wipe all local data">reset all data</button>
+    </div>
+  </section>
+
+  <!-- ROUND -->
+  <section id="round" hidden>
+    <div class="round-bar">
+      <span class="timer" id="timer">2:00</span>
+      <div class="right-cluster">
+        <span class="combo" id="combo">×0</span>
+        <div class="pb-bar-wrap" id="pb-bar-wrap"><div class="pb-bar" id="pb-bar"></div></div>
+        <span class="score" id="score">0.0</span>
+      </div>
+    </div>
+    <div class="question" id="question">&nbsp;</div>
+    <div class="answer-wrap">
+      <input class="answer" id="answer" inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      <div id="floater-host"></div>
+    </div>
+  </section>
+
+  <!-- END -->
+  <section id="end" hidden>
+    <div class="end-score">
+      <div class="big" id="end-score-num">0</div>
+      <div class="sub" id="end-score-sub">correct in 2:00 · avg 0.0s</div>
+      <div class="new-best" id="new-best" hidden>new personal best</div>
+    </div>
+    <div class="unlock-banner" id="unlock-banner" hidden></div>
+    <div class="achievement-toasts" id="achievement-toasts"></div>
+    <div class="insight" id="insight"></div>
+    <div class="deltas" id="deltas"></div>
+    <div class="panel">
+      <div class="panel-title">Skill — this session vs last</div>
+      <div class="radar-wrap">
+        <svg class="radar" id="radar-end" width="320" height="320" viewBox="0 0 320 320"></svg>
+      </div>
+    </div>
+    <div class="start-prompt">Press <kbd>Space</kbd> or <kbd>Enter</kbd> to play again · <kbd>Esc</kbd> for home</div>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+// ---------- constants ----------
+const OPS = ["add", "sub", "mul", "div", "sq", "pow", "sqrt", "fact"];
+const OP_LABEL = {
+  add: "+", sub: "−", mul: "×", div: "÷",
+  sq: "n²", pow: "aⁿ", sqrt: "√", fact: "n!"
+};
+const OP_NAME = {
+  add: "addition", sub: "subtraction", mul: "multiplication", div: "division",
+  sq: "squares", pow: "powers", sqrt: "square roots", fact: "factorials"
+};
+const UNLOCK_TIERS = [
+  { op: "mul",  threshold: 25 },
+  { op: "div",  threshold: 35 },
+  { op: "sq",   threshold: 50 },
+  { op: "pow",  threshold: 60 },
+  { op: "sqrt", threshold: 65 },
+  { op: "fact", threshold: 75 },
+];
+const ROUND_SECONDS = 120;
+
+// ---------- mini-achievements ----------
+// Tasteful milestones — toasted ONCE on the end screen the round they're earned.
+// No badges, no titles. The named criterion is the reward.
+const MILESTONES = [
+  { id: "first_round",      label: "first round complete",      check: (s) => s.history.length >= 1 },
+  { id: "score_25",         label: "first round above 25",      check: (s) => s.bestScore >= 25 },
+  { id: "score_50",         label: "first round above 50",      check: (s) => s.bestScore >= 50 },
+  { id: "score_100",        label: "100 club",                  check: (s) => s.bestScore >= 100 },
+  { id: "score_200",        label: "200 club",                  check: (s) => s.bestScore >= 200 },
+  { id: "streak_3",         label: "3-day streak",              check: (s) => s.streak.longest >= 3 },
+  { id: "streak_7",         label: "1-week streak",             check: (s) => s.streak.longest >= 7 },
+  { id: "streak_14",        label: "2-week streak",             check: (s) => s.streak.longest >= 14 },
+  { id: "streak_30",        label: "30-day streak",             check: (s) => s.streak.longest >= 30 },
+  { id: "answered_100",     label: "100 questions answered",    check: (s) => s.totalAnswered >= 100 },
+  { id: "answered_500",     label: "500 questions answered",    check: (s) => s.totalAnswered >= 500 },
+  { id: "answered_1000",    label: "1,000 questions answered",  check: (s) => s.totalAnswered >= 1000 },
+  { id: "answered_5000",    label: "5,000 questions answered",  check: (s) => s.totalAnswered >= 5000 },
+  { id: "all_unlocked",     label: "all operators unlocked",    check: (s) => s.unlocks.length >= 8 },
+  { id: "skill_50",         label: "any skill at 50",           check: (s) => Math.max(...OPS.map(o => s.skill[o] || 0)) >= 50 },
+  { id: "skill_75",         label: "any skill at 75",           check: (s) => Math.max(...OPS.map(o => s.skill[o] || 0)) >= 75 },
+  { id: "skill_100",        label: "skill maxed",               check: (s) => Math.max(...OPS.map(o => s.skill[o] || 0)) >= 100 },
+  { id: "combo_10",         label: "10-question combo",         check: (s) => s.bestCombo >= 10 },
+  { id: "combo_25",         label: "25-question combo",         check: (s) => s.bestCombo >= 25 },
+  { id: "combo_50",         label: "50-question combo",         check: (s) => s.bestCombo >= 50 },
+];
+function checkMilestones() {
+  const newly = [];
+  for (const m of MILESTONES) {
+    if (state.achievements.includes(m.id)) continue;
+    if (m.check(state)) {
+      state.achievements.push(m.id);
+      newly.push(m);
+    }
+  }
+  return newly;
+}
+
+// ---------- daily challenge ----------
+// One challenge per day, chosen variably. Hooks the variable-reward loop on
+// return: opening the app surfaces a fresh, achievable goal each day.
+const CHALLENGE_TEMPLATES = [
+  () => ({ type: "answer_correct", target: 30, label: "answer 30 questions correctly" }),
+  () => ({ type: "answer_correct", target: 60, label: "answer 60 questions correctly" }),
+  () => ({ type: "play_rounds",    target: 3,  label: "play 3 rounds" }),
+  () => ({ type: "play_rounds",    target: 5,  label: "play 5 rounds" }),
+  () => ({ type: "single_score",   target: Math.max(20, Math.round((state.bestScore || 20) * 0.85)), label: null }),
+  () => ({ type: "combo",          target: 10, label: "hit a 10-question combo" }),
+  () => ({ type: "combo",          target: 20, label: "hit a 20-question combo" }),
+  () => ({ type: "fast_avg",       target: 1.5, label: "average under 1.5s in a round" }),
+];
+function ensureDailyChallenge() {
+  const today = todayKey();
+  if (state.dailyChallenge && state.dailyChallenge.date === today) return;
+  const tpl = pick(CHALLENGE_TEMPLATES)();
+  if (tpl.type === "single_score") {
+    tpl.label = `score ${tpl.target}+ in a single round`;
+  }
+  state.dailyChallenge = {
+    date: today,
+    type: tpl.type,
+    target: tpl.target,
+    label: tpl.label,
+    progress: 0,
+    completed: false,
+  };
+}
+function updateDailyChallenge(session) {
+  const dc = state.dailyChallenge;
+  if (!dc || dc.date !== todayKey()) return;
+  if (dc.completed) return;
+  if (dc.type === "answer_correct") dc.progress += session.responses.length;
+  else if (dc.type === "play_rounds") dc.progress += 1;
+  else if (dc.type === "single_score") dc.progress = Math.max(dc.progress, session.score);
+  else if (dc.type === "combo") dc.progress = Math.max(dc.progress, session.bestCombo || 0);
+  else if (dc.type === "fast_avg") {
+    const avgS = session.responses.length
+      ? session.responses.reduce((a, r) => a + r.t, 0) / session.responses.length / 1000
+      : Infinity;
+    if (avgS > 0 && session.responses.length >= 10) dc.progress = Math.max(dc.progress, 1 / avgS);
+  }
+  let met = false;
+  if (dc.type === "fast_avg") met = (dc.progress > 0) && (1 / dc.progress) <= dc.target;
+  else met = dc.progress >= dc.target;
+  if (met && !dc.completed) {
+    dc.completed = true;
+    return true;
+  }
+  return false;
+}
+function dailyChallengeText() {
+  const dc = state.dailyChallenge;
+  if (!dc) return null;
+  let progressText;
+  if (dc.completed) progressText = `done`;
+  else if (dc.type === "fast_avg") progressText = dc.progress > 0 ? `${(1/dc.progress).toFixed(2)}s / ${dc.target.toFixed(1)}s` : `— / ${dc.target.toFixed(1)}s`;
+  else progressText = `${Math.min(dc.progress, dc.target)} / ${dc.target}`;
+  return { label: dc.label, progress: progressText, completed: dc.completed };
+}
+
+// ---------- question weighting ----------
+// Score per correct answer is its difficulty weight, not a flat +1, so harder
+// problems are worth more. Weight is a function of operator type + answer
+// magnitude, clamped per op so no single question dominates.
+//
+//   + −     1.0 – 4.0    (small adds nearly free, 3-digit adds ~3-4)
+//   × ÷     2.0 – 6.0    (times-tables ~2, near-100 products ~5-6)
+//   n²      2.0 – 5.0
+//   √       2.0 – 5.0
+//   aⁿ      3.0 – 7.0    (powers cost the most per problem)
+//   n!      3.0 – 6.0
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function questionWeight(q) {
+  const ans = Math.max(1, Math.abs(q.answer));
+  const lg = Math.log2;
+  switch (q.op) {
+    case "add":
+    case "sub":  return clamp(1 + lg(ans / 10), 1, 4);
+    case "mul":
+    case "div":  return clamp(2 + lg(ans / 20), 2, 6);
+    case "sq":   return clamp(2 + lg(ans / 25), 2, 5);
+    case "pow":  return clamp(3 + lg(ans / 32), 3, 7);
+    case "sqrt": return clamp(2 + lg(ans / 5),  2, 5);
+    case "fact": return clamp(3 + lg(ans / 6),  3, 6);
+  }
+  return 1;
+}
+function fmtScore(n) { return n.toFixed(1); }
+
+// ---------- persistence ----------
+const KEYS = {
+  skill: "zmac.skill",
+  bestScore: "zmac.bestScore",
+  totalAnswered: "zmac.totalAnswered",
+  lastRadar: "zmac.lastRadar",
+  history: "zmac.history",
+  daily: "zmac.daily",
+  streak: "zmac.streak",
+  unlocks: "zmac.unlocks",
+  audio: "zmac.audio",
+  opMedians: "zmac.opMedians",
+  achievements: "zmac.achievements",
+  dailyChallenge: "zmac.dailyChallenge",
+  bestCombo: "zmac.bestCombo",
+};
+function safeGet(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    return JSON.parse(raw);
+  } catch (e) {
+    return fallback;
+  }
+}
+function safeSet(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); }
+  catch (e) {}
+}
+function loadState() {
+  const s = {
+    skill: safeGet(KEYS.skill, { add: 10, sub: 10, mul: 0, div: 0, sq: 0, pow: 0, sqrt: 0, fact: 0 }),
+    bestScore: safeGet(KEYS.bestScore, 0),
+    totalAnswered: safeGet(KEYS.totalAnswered, 0),
+    lastRadar: safeGet(KEYS.lastRadar, null),
+    history: safeGet(KEYS.history, []),
+    daily: safeGet(KEYS.daily, {}),
+    streak: safeGet(KEYS.streak, { current: 0, longest: 0, lastDate: null }),
+    unlocks: safeGet(KEYS.unlocks, ["add", "sub"]),
+    audio: safeGet(KEYS.audio, false),
+    opMedians: safeGet(KEYS.opMedians, { add: 2200, sub: 2400, mul: 3000, div: 3200, sq: 3000, pow: 3500, sqrt: 3000, fact: 2800 }),
+    achievements: safeGet(KEYS.achievements, []),
+    dailyChallenge: safeGet(KEYS.dailyChallenge, null),
+    bestCombo: safeGet(KEYS.bestCombo, 0),
+  };
+  // ensure all 8 keys exist on skill
+  for (const op of OPS) if (typeof s.skill[op] !== "number") s.skill[op] = 0;
+  // sanitize unlocks
+  s.unlocks = s.unlocks.filter(op => OPS.includes(op));
+  if (!s.unlocks.includes("add")) s.unlocks.unshift("add");
+  if (!s.unlocks.includes("sub")) s.unlocks.splice(1, 0, "sub");
+  return s;
+}
+function persistAll() {
+  safeSet(KEYS.skill, state.skill);
+  safeSet(KEYS.bestScore, state.bestScore);
+  safeSet(KEYS.totalAnswered, state.totalAnswered);
+  safeSet(KEYS.lastRadar, state.lastRadar);
+  safeSet(KEYS.history, state.history);
+  safeSet(KEYS.daily, state.daily);
+  safeSet(KEYS.streak, state.streak);
+  safeSet(KEYS.unlocks, state.unlocks);
+  safeSet(KEYS.audio, state.audio);
+  safeSet(KEYS.opMedians, state.opMedians);
+  safeSet(KEYS.achievements, state.achievements);
+  safeSet(KEYS.dailyChallenge, state.dailyChallenge);
+  safeSet(KEYS.bestCombo, state.bestCombo);
+}
+
+// ---------- date utils ----------
+function isoDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function todayKey() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return isoDate(d);
+}
+function daysBetween(aKey, bKey) {
+  const a = new Date(aKey + "T00:00:00");
+  const b = new Date(bKey + "T00:00:00");
+  return Math.round((b - a) / 86400000);
+}
+
+// ---------- random / math ----------
+function randInt(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function factorial(n) {
+  let r = 1;
+  for (let i = 2; i <= n; i++) r *= i;
+  return r;
+}
+
+// ---------- skill / unlocks ----------
+function maxSkill() { return Math.max(...OPS.map(op => state.skill[op] || 0)); }
+function nextUnlock() {
+  for (const tier of UNLOCK_TIERS) {
+    if (!state.unlocks.includes(tier.op)) return tier;
+  }
+  return null;
+}
+function applyUnlocks() {
+  const newly = [];
+  const m = maxSkill();
+  for (const tier of UNLOCK_TIERS) {
+    if (m >= tier.threshold && !state.unlocks.includes(tier.op)) {
+      state.unlocks.push(tier.op);
+      newly.push(tier.op);
+    }
+  }
+  return newly;
+}
+function targetTimeMs(s) { return (1.5 + s / 50) * 1000; }
+
+// EMA-style rolling median per op for the speed-bonus baseline.
+// Init each op's median lazily on first answer; otherwise drift slowly so
+// improvements stay visible (a recent fast streak compresses your baseline,
+// which lifts the bar — keeps the bonus earned, not free).
+function speedBonus(op, t) {
+  const med = state.opMedians[op];
+  if (!med || med <= 0) return 1.0;          // no baseline yet → no bonus
+  const ratio = t / med;
+  if (ratio < 0.55) return 1.5;              // ⚡ way under your norm
+  if (ratio < 0.75) return 1.25;
+  if (ratio < 0.95) return 1.10;
+  return 1.0;
+}
+function updateMedian(op, t) {
+  const cur = state.opMedians[op] || 0;
+  state.opMedians[op] = cur === 0 ? t : (0.92 * cur + 0.08 * t);
+}
+// combo gives a small additive bonus on top of weight*speed: every 10 in a
+// row adds +0.5 to the score of subsequent answers, capped at +2.5 (combo 50).
+function comboBonus(combo) { return Math.min(2.5, Math.floor(combo / 10) * 0.5); }
+
+function adjustSkill(op, ms) {
+  const t = targetTimeMs(state.skill[op]);
+  if (ms < t) state.skill[op] = Math.min(100, state.skill[op] + 1);
+  else if (ms > 2 * t) state.skill[op] = Math.max(0, state.skill[op] - 1);
+}
+
+// ---------- question generators ----------
+function rangeAddSub(s) {
+  if (s < 10) return [1, 10];
+  if (s < 25) return [1, 25];
+  if (s < 50) return [1, 50];
+  if (s < 75) return [1, 100];
+  return [1, 200];
+}
+function rangeMulDiv(s) {
+  if (s < 10) return [1, 5];
+  if (s < 25) return [1, 10];
+  if (s < 50) return [1, 12];
+  if (s < 75) return [1, 15];
+  return [1, 20];
+}
+function rangeSq(s) {
+  if (s < 25) return [2, 10];
+  if (s < 50) return [2, 15];
+  return [2, 20];
+}
+function rangePow(s) {
+  if (s < 25) return { bases: [2, 3], exp: [2, 4] };
+  if (s < 50) return { bases: [2, 3, 4], exp: [2, 5] };
+  return { bases: [2, 3, 4, 5], exp: [2, 6] };
+}
+function rangeSqrt(s) {
+  if (s < 25) return [2, 12];
+  if (s < 50) return [2, 16];
+  return [2, 20];
+}
+function rangeFact() { return [1, 6]; }
+
+function makeQuestion(op) {
+  const s = state.skill[op];
+  switch (op) {
+    case "add": {
+      const [lo, hi] = rangeAddSub(s);
+      const a = randInt(lo, hi), b = randInt(lo, hi);
+      return { op, display: `${a} + ${b}`, answer: a + b };
+    }
+    case "sub": {
+      const [lo, hi] = rangeAddSub(s);
+      let a = randInt(lo, hi), b = randInt(lo, hi);
+      if (a < b) [a, b] = [b, a];
+      return { op, display: `${a} − ${b}`, answer: a - b };
+    }
+    case "mul": {
+      const [lo, hi] = rangeMulDiv(s);
+      // skip 1×n trivials — no learning value
+      const minA = hi >= 3 ? Math.max(lo, 2) : lo;
+      const a = randInt(minA, hi), b = randInt(minA, hi);
+      return { op, display: `${a} × ${b}`, answer: a * b };
+    }
+    case "div": {
+      const [lo, hi] = rangeMulDiv(s);
+      // q=1 means the answer is the divisor (trivial); enforce q≥2
+      const q = randInt(Math.max(2, lo), hi);
+      const d = randInt(Math.max(2, lo), hi);
+      return { op, display: `${q * d} ÷ ${d}`, answer: q };
+    }
+    case "sq": {
+      const [lo, hi] = rangeSq(s);
+      const n = randInt(lo, hi);
+      return { op, display: `${n}<sup>2</sup>`, answer: n * n };
+    }
+    case "pow": {
+      const cfg = rangePow(s);
+      const a = pick(cfg.bases);
+      const e = randInt(cfg.exp[0], cfg.exp[1]);
+      return { op, display: `${a}<sup>${e}</sup>`, answer: Math.pow(a, e) };
+    }
+    case "sqrt": {
+      const [lo, hi] = rangeSqrt(s);
+      const n = randInt(lo, hi);
+      return { op, display: `√${n * n}`, answer: n };
+    }
+    case "fact": {
+      const [lo, hi] = rangeFact();
+      const n = randInt(lo, hi);
+      return { op, display: `${n}!`, answer: factorial(n) };
+    }
+  }
+}
+
+function pickOp() {
+  if (state.unlocks.length === 1) return state.unlocks[0];
+  // 30% uniform; 70% weighted toward weak
+  if (Math.random() < 0.3) return pick(state.unlocks);
+  const weights = state.unlocks.map(op => 1 / (1 + state.skill[op] / 25));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < state.unlocks.length; i++) {
+    r -= weights[i];
+    if (r < 0) return state.unlocks[i];
+  }
+  return state.unlocks[state.unlocks.length - 1];
+}
+
+// ---------- polygon area (single scalar skill summary) ----------
+function polygonArea(skill) {
+  const r = OPS.map(op => skill[op] || 0);
+  const n = r.length;
+  let sum = 0;
+  for (let i = 0; i < n; i++) sum += r[i] * r[(i + 1) % n];
+  return 0.5 * Math.sin((2 * Math.PI) / n) * sum;
+}
+const A_MAX = 0.5 * 8 * 100 * 100 * Math.sin(Math.PI / 4); // ~28284
+function areaNorm(skill) {
+  return Math.round((polygonArea(skill) / A_MAX) * 1000) / 10; // 0–100, 1 dp
+}
+
+// ---------- audio (subtle WebAudio tick) ----------
+let audioCtx = null;
+function ensureAudioCtx() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) {}
+  }
+}
+function tick(freq) {
+  if (!state.audio || !audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = "sine";
+  o.frequency.value = freq;
+  o.connect(g);
+  g.connect(audioCtx.destination);
+  const t = audioCtx.currentTime;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.06, t + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+  o.start(t);
+  o.stop(t + 0.06);
+}
+
+// ---------- radar SVG ----------
+function renderRadar(svgEl, skillNow, skillPrev) {
+  const w = 320, h = 320;
+  const cx = w / 2, cy = h / 2;
+  const R = 110;
+  const n = OPS.length;
+  let g = "";
+
+  // rings
+  for (const ringR of [R * 0.25, R * 0.5, R * 0.75, R]) {
+    g += `<circle class="ring" cx="${cx}" cy="${cy}" r="${ringR}" />`;
+  }
+
+  // spokes + labels
+  const next = nextUnlock();
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + (i / n) * 2 * Math.PI;
+    const x = cx + R * Math.cos(a);
+    const y = cy + R * Math.sin(a);
+    g += `<line class="spoke" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" />`;
+    const lx = cx + (R + 22) * Math.cos(a);
+    const ly = cy + (R + 22) * Math.sin(a);
+    const op = OPS[i];
+    const unlocked = state.unlocks.includes(op);
+    let cls = "label";
+    if (!unlocked) cls += (next && next.op === op) ? " next" : " locked";
+    const label = OP_LABEL[op];
+    g += `<text class="${cls}" x="${lx}" y="${ly}">${label}</text>`;
+  }
+
+  // previous polygon (ghost)
+  if (skillPrev) {
+    let pts = "";
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + (i / n) * 2 * Math.PI;
+      const v = (skillPrev[OPS[i]] || 0) / 100 * R;
+      pts += `${cx + v * Math.cos(a)},${cy + v * Math.sin(a)} `;
+    }
+    g += `<polygon class="poly-prev" points="${pts.trim()}" />`;
+  }
+
+  // current polygon
+  let pts = "";
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + (i / n) * 2 * Math.PI;
+    const v = (skillNow[OPS[i]] || 0) / 100 * R;
+    pts += `${cx + v * Math.cos(a)},${cy + v * Math.sin(a)} `;
+  }
+  g += `<polygon class="poly-now" points="${pts.trim()}" />`;
+
+  // vertices
+  for (let i = 0; i < n; i++) {
+    const op = OPS[i];
+    if (!state.unlocks.includes(op) || (skillNow[op] || 0) === 0) continue;
+    const a = -Math.PI / 2 + (i / n) * 2 * Math.PI;
+    const v = skillNow[op] / 100 * R;
+    g += `<circle class="vertex" cx="${cx + v * Math.cos(a)}" cy="${cy + v * Math.sin(a)}" r="3" />`;
+  }
+
+  svgEl.innerHTML = g;
+}
+
+// ---------- trend chart ----------
+// Two y-axes: left = polygon-area-norm (skill, 0–100), right = avg time per
+// question in seconds (auto-scaled). x-axis is session index across the last
+// 60 sessions. Faster avg-time = lower on chart, so the two lines naturally
+// "cross" as the user gets stronger and faster — orange goes up, blue goes down.
+function renderTrend(svgEl, history) {
+  const W = 600, H = 140, padL = 32, padR = 38, padT = 10, padB = 22;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  let g = "";
+
+  // left-axis gridlines + labels (skill area, 0–100)
+  for (const v of [25, 50, 75]) {
+    const y = padT + innerH * (1 - v / 100);
+    g += `<line class="gridline" x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" />`;
+    g += `<text class="axis-label left" x="${4}" y="${y + 3}">${v}</text>`;
+  }
+  g += `<line class="axis" x1="${padL}" y1="${padT + innerH}" x2="${W - padR}" y2="${padT + innerH}" />`;
+  g += `<line class="axis" x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT + innerH}" />`;
+  g += `<line class="axis" x1="${W - padR}" y1="${padT}" x2="${W - padR}" y2="${padT + innerH}" />`;
+
+  if (history.length === 0) {
+    g += `<text x="${W/2}" y="${H/2 + 4}" class="axis-label" text-anchor="middle" style="font-size:12px">complete a round to start the trend</text>`;
+    svgEl.innerHTML = g;
+    return;
+  }
+
+  // last 60 points
+  const data = history.slice(-60);
+  const xStep = data.length > 1 ? innerW / (data.length - 1) : 0;
+
+  // right-axis range (avg time, seconds) — auto-scale across visible data
+  const timeVals = data
+    .map(d => (typeof d.avgMs === "number" ? d.avgMs / 1000 : null))
+    .filter(v => v !== null && Number.isFinite(v) && v > 0);
+  let tMin = 0.5, tMax = 4.0;
+  if (timeVals.length) {
+    const lo = Math.min(...timeVals);
+    const hi = Math.max(...timeVals);
+    const span = Math.max(0.5, hi - lo);
+    tMin = Math.max(0, lo - span * 0.15);
+    tMax = hi + span * 0.15;
+    // Round outward to nice values
+    tMin = Math.floor(tMin * 2) / 2;
+    tMax = Math.ceil(tMax * 2) / 2;
+    if (tMax - tMin < 1) tMax = tMin + 1;
+  }
+  const tToY = (s) => padT + innerH * (1 - (s - tMin) / (tMax - tMin));
+
+  // right-axis labels (3 ticks: tMin, mid, tMax)
+  if (timeVals.length) {
+    const ticks = [tMin, (tMin + tMax) / 2, tMax];
+    for (const v of ticks) {
+      const y = tToY(v);
+      g += `<text class="axis-label right" x="${W - padR + 4}" y="${y + 3}">${v.toFixed(1)}s</text>`;
+    }
+  }
+
+  // skill-area line + fill (left axis)
+  const pts = data.map((d, i) => {
+    const x = padL + i * xStep;
+    const y = padT + innerH * (1 - Math.max(0, Math.min(100, d.areaNorm)) / 100);
+    return [x, y];
+  });
+  if (pts.length >= 2) {
+    const linePath = "M " + pts.map(p => p.join(",")).join(" L ");
+    const areaPath = `M ${pts[0][0]},${padT + innerH} L ` + pts.map(p => p.join(",")).join(" L ") + ` L ${pts[pts.length-1][0]},${padT + innerH} Z`;
+    g += `<path class="area-fill" d="${areaPath}" />`;
+    g += `<path class="line" d="${linePath}" />`;
+  }
+  for (const [x, y] of pts) {
+    g += `<circle class="point" cx="${x}" cy="${y}" r="${pts.length > 30 ? 1.5 : 2.5}" />`;
+  }
+
+  // avg-time line (right axis, dashed). Skip null gaps cleanly.
+  const tPts = data.map((d, i) => {
+    if (typeof d.avgMs !== "number" || !Number.isFinite(d.avgMs) || d.avgMs <= 0) return null;
+    return [padL + i * xStep, tToY(d.avgMs / 1000)];
+  });
+  // Build segments split on null
+  let segs = [], cur = [];
+  for (const p of tPts) {
+    if (p) cur.push(p);
+    else if (cur.length) { segs.push(cur); cur = []; }
+  }
+  if (cur.length) segs.push(cur);
+  for (const seg of segs) {
+    if (seg.length >= 2) {
+      g += `<path class="line-2" d="M ${seg.map(p => p.join(",")).join(" L ")}" />`;
+    }
+    for (const [x, y] of seg) {
+      g += `<circle class="point-2" cx="${x}" cy="${y}" r="${data.length > 30 ? 1.5 : 2.5}" />`;
+    }
+  }
+
+  // legend (top-right corner)
+  g += `<text class="axis-label legend" x="${W - padR - 4}" y="${padT + 10}" text-anchor="end">`;
+  g += `<tspan fill="var(--accent)">— skill area</tspan>`;
+  g += ` <tspan fill="var(--accent-2)">--- avg time</tspan>`;
+  g += `</text>`;
+
+  // x-axis labels (first / last date)
+  if (data.length > 0) {
+    g += `<text class="axis-label" x="${padL}" y="${H - 6}">${data[0].date}</text>`;
+    if (data.length > 1) {
+      g += `<text class="axis-label" x="${W - padR}" y="${H - 6}" text-anchor="end">${data[data.length - 1].date}</text>`;
+    }
+  }
+
+  svgEl.innerHTML = g;
+}
+
+// ---------- heatmap ----------
+function renderHeatmap(container) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const dow = today.getDay(); // 0=Sun..6=Sat
+  const saturday = new Date(today);
+  saturday.setDate(today.getDate() + (6 - dow));
+
+  let html = "";
+  for (let r = 0; r < 7; r++) {
+    for (let c = 0; c < 18; c++) {
+      const days = (17 - c) * 7 + (6 - r);
+      const d = new Date(saturday);
+      d.setDate(saturday.getDate() - days);
+      const future = d > today;
+      const key = isoDate(d);
+      const data = state.daily[key];
+      const rounds = data ? data.rounds : 0;
+      let bucket = "";
+      if (future) bucket = "future";
+      else if (rounds >= 11) bucket = "b4";
+      else if (rounds >= 6) bucket = "b3";
+      else if (rounds >= 3) bucket = "b2";
+      else if (rounds >= 1) bucket = "b1";
+      const isToday = key === todayKey();
+      const tip = future ? key : `${key} · ${rounds} round${rounds === 1 ? "" : "s"}${data ? ` · best ${fmtScore(data.best)}` : ""}`;
+      html += `<div class="cell ${bucket} ${isToday ? "today" : ""}" style="grid-row:${r+1};grid-column:${c+1}" title="${tip}"></div>`;
+    }
+  }
+  container.innerHTML = html;
+}
+
+// ---------- pool description ----------
+function poolDescription() {
+  const opsTxt = state.unlocks.map(op => OP_LABEL[op]).join(" ");
+  const next = nextUnlock();
+  const m = maxSkill();
+  let nx = "";
+  if (next) nx = ` · next unlock: ${OP_LABEL[next.op]} at ${next.threshold} (you: ${m})`;
+  // surface the weakest operator as a focus suggestion when there's
+  // meaningful imbalance (encourages targeted practice without forcing it)
+  let focus = "";
+  if (state.unlocks.length >= 2) {
+    const skills = state.unlocks.map(o => ({ op: o, s: state.skill[o] }));
+    const min = skills.reduce((a, b) => a.s < b.s ? a : b);
+    const avg = skills.reduce((a, b) => a + b.s, 0) / skills.length;
+    if (avg - min.s >= 8) focus = ` · weakest: ${OP_NAME[min.op]} (${min.s})`;
+  }
+  return `${opsTxt}${nx}${focus}`;
+}
+
+// ---------- streak ----------
+function updateStreakAfterPlay() {
+  const t = todayKey();
+  const last = state.streak.lastDate;
+  if (!last) {
+    state.streak.current = 1;
+  } else if (last === t) {
+    // already played today; no change
+  } else {
+    const diff = daysBetween(last, t);
+    if (diff === 1) state.streak.current += 1;
+    else state.streak.current = 1;
+  }
+  state.streak.longest = Math.max(state.streak.longest, state.streak.current);
+  state.streak.lastDate = t;
+}
+
+function adjustStreakOnLoad() {
+  // if user opens app and last play was 2+ days ago, current streak is broken until they play today
+  const t = todayKey();
+  const last = state.streak.lastDate;
+  if (!last) return;
+  const diff = daysBetween(last, t);
+  if (diff >= 2) state.streak.current = 0;
+}
+
+// ---------- session insight ----------
+function buildInsight(session) {
+  const { responses, score, perOpDelta, prevSkill, bestCombo } = session;
+  const lines = [];
+  if (responses.length === 0) {
+    return "every round counts. tap or press space to go again.";
+  }
+  // hot finish — last 3 answers were each fast (sub-target)
+  if (responses.length >= 3) {
+    const lastThree = responses.slice(-3);
+    const hot = lastThree.every(r => r.multiplier && r.multiplier >= 1.1);
+    if (hot) lines.push(`finished hot — last 3 answers all under your norm`);
+  }
+  if (bestCombo && bestCombo >= 5) {
+    lines.push(`peak combo: ${bestCombo} in a row`);
+  }
+  // by-op timing
+  const byOp = {};
+  for (const r of responses) {
+    if (!byOp[r.op]) byOp[r.op] = [];
+    byOp[r.op].push(r.t);
+  }
+  const opAvgs = Object.entries(byOp)
+    .filter(([, arr]) => arr.length >= 2)
+    .map(([op, arr]) => ({ op, avg: arr.reduce((a, b) => a + b, 0) / arr.length, count: arr.length }));
+
+  if (opAvgs.length >= 2) {
+    opAvgs.sort((a, b) => a.avg - b.avg);
+    const fast = opAvgs[0], slow = opAvgs[opAvgs.length - 1];
+    lines.push(`fastest: ${OP_NAME[fast.op]} (${(fast.avg/1000).toFixed(2)}s avg) · slowest: ${OP_NAME[slow.op]} (${(slow.avg/1000).toFixed(2)}s)`);
+  }
+  // best streak of same op
+  let runOp = null, run = 0, bestRunOp = null, bestRun = 0;
+  for (const r of responses) {
+    if (r.op === runOp) run++;
+    else { runOp = r.op; run = 1; }
+    if (run > bestRun) { bestRun = run; bestRunOp = runOp; }
+  }
+  if (bestRun >= 4) lines.push(`${bestRun} ${OP_NAME[bestRunOp]} in a row`);
+  // skill jumps
+  const climbed = Object.entries(perOpDelta).filter(([, d]) => d >= 2);
+  if (climbed.length) {
+    climbed.sort((a, b) => b[1] - a[1]);
+    const [op, d] = climbed[0];
+    lines.push(`${OP_NAME[op]} skill +${d}`);
+  }
+  // overall area movement
+  if (state.history.length >= 2) {
+    const last = state.history[state.history.length - 1];
+    const prev = state.history[state.history.length - 2];
+    const delta = last.areaNorm - prev.areaNorm;
+    if (Math.abs(delta) >= 0.1) {
+      const sign = delta > 0 ? "+" : "";
+      lines.push(`overall skill area ${sign}${delta.toFixed(1)}`);
+    }
+  }
+  // median time
+  const times = responses.map(r => r.t).sort((a, b) => a - b);
+  if (times.length >= 4) {
+    const med = times[Math.floor(times.length / 2)] / 1000;
+    lines.push(`median answer: ${med.toFixed(2)}s`);
+  }
+  // hardest single problem solved
+  const hardest = responses.reduce((acc, r) => (!acc || r.weight > acc.weight) ? r : acc, null);
+  if (hardest && hardest.weight >= 4) {
+    lines.push(`toughest solve: ${OP_NAME[hardest.op]} (worth ${hardest.weight.toFixed(1)})`);
+  }
+  // average difficulty
+  if (responses.length >= 6) {
+    const avgW = responses.reduce((a, r) => a + r.weight, 0) / responses.length;
+    lines.push(`avg question difficulty: ${avgW.toFixed(2)}`);
+  }
+  // pick one at random for variable-reward feel
+  if (lines.length === 0) return "warming up.";
+  return pick(lines);
+}
+
+// ---------- state ----------
+let state = loadState();
+adjustStreakOnLoad();
+
+let session = null; // active round state
+
+// ---------- screen wiring ----------
+const screens = {
+  home: document.getElementById("home"),
+  round: document.getElementById("round"),
+  end: document.getElementById("end"),
+};
+function setScreen(name) {
+  for (const k of Object.keys(screens)) screens[k].hidden = (k !== name);
+}
+
+function renderHome() {
+  document.getElementById("stat-best").textContent = fmtScore(state.bestScore);
+  document.getElementById("stat-streak").textContent = state.streak.current;
+  document.getElementById("stat-longest").textContent = state.streak.longest;
+  document.getElementById("stat-lifetime").textContent = state.totalAnswered.toLocaleString();
+  document.getElementById("pool-line").textContent = poolDescription();
+  document.getElementById("audio-toggle").textContent = `audio: ${state.audio ? "on" : "off"}`;
+  renderRadar(document.getElementById("radar"), state.skill, null);
+  renderTrend(document.getElementById("trend"), state.history);
+  renderHeatmap(document.getElementById("heatmap"));
+  renderVelocity();
+  renderDailyChallenge();
+}
+
+function renderVelocity() {
+  const el = document.getElementById("velocity");
+  const h = state.history;
+  if (h.length < 3) { el.innerHTML = ""; return; }
+  const window = h.slice(-7);
+  const first = window[0].areaNorm;
+  const last = window[window.length - 1].areaNorm;
+  const slope = (last - first) / (window.length - 1);
+  const arrow = slope > 0.1 ? "▲" : slope < -0.1 ? "▼" : "·";
+  const cls = slope > 0.1 ? "up" : slope < -0.1 ? "down" : "";
+  const sign = slope >= 0 ? "+" : "";
+  el.innerHTML = `<span class="${cls}">${arrow}</span> trending ${sign}${slope.toFixed(2)} skill area / session over last ${window.length}`;
+}
+
+function renderDailyChallenge() {
+  ensureDailyChallenge();
+  const dc = state.dailyChallenge;
+  const wrap = document.getElementById("daily-challenge");
+  if (!dc) { wrap.hidden = true; return; }
+  const t = dailyChallengeText();
+  if (!t) { wrap.hidden = true; return; }
+  wrap.hidden = false;
+  wrap.classList.toggle("completed", !!dc.completed);
+  document.getElementById("dc-text").textContent = t.label;
+  document.getElementById("dc-progress").textContent = t.progress;
+}
+
+// ---------- round ----------
+function startRound() {
+  ensureAudioCtx();
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+
+  session = {
+    score: 0,
+    displayedScore: 0,
+    scoreAnimId: null,
+    responses: [],
+    skillBefore: { ...state.skill },
+    unlocksBefore: [...state.unlocks],
+    bestBefore: state.bestScore,
+    questionStart: 0,
+    timeLeft: ROUND_SECONDS,
+    timerId: null,
+    current: null,
+    combo: 0,
+    bestCombo: 0,
+  };
+  setScreen("round");
+  updateTimer();
+  updateScore(true);
+  updateCombo();
+  updatePbBar();
+  nextQuestion(true);
+  const ans = document.getElementById("answer");
+  ans.value = "";
+  ans.focus();
+  session.timerId = setInterval(tickSecond, 1000);
+}
+
+function tickSecond() {
+  session.timeLeft -= 1;
+  updateTimer();
+  if (session.timeLeft <= 0) endRound();
+}
+
+function updateTimer() {
+  const t = Math.max(0, session.timeLeft);
+  const m = Math.floor(t / 60);
+  const s = t % 60;
+  const el = document.getElementById("timer");
+  el.textContent = `${m}:${String(s).padStart(2, "0")}`;
+  el.classList.toggle("urgent", t > 0 && t <= 10);
+}
+
+function updateScore(immediate) {
+  const el = document.getElementById("score");
+  el.classList.remove("near", "beat");
+  if (session.score > state.bestScore) el.classList.add("beat");
+  else if (state.bestScore > 0 && session.score >= state.bestScore * 0.85) el.classList.add("near");
+  // animate the displayed number from current displayedScore → session.score
+  if (immediate) {
+    session.displayedScore = session.score;
+    el.textContent = fmtScore(session.score);
+    return;
+  }
+  const from = session.displayedScore;
+  const to = session.score;
+  if (session.scoreAnimId) cancelAnimationFrame(session.scoreAnimId);
+  const start = performance.now();
+  const dur = 220;
+  const step = (now) => {
+    const tt = Math.min(1, (now - start) / dur);
+    const eased = 1 - Math.pow(1 - tt, 3);
+    const v = from + (to - from) * eased;
+    session.displayedScore = v;
+    el.textContent = fmtScore(v);
+    if (tt < 1) session.scoreAnimId = requestAnimationFrame(step);
+    else { el.textContent = fmtScore(to); session.displayedScore = to; }
+  };
+  session.scoreAnimId = requestAnimationFrame(step);
+}
+
+function updateCombo() {
+  const el = document.getElementById("combo");
+  if (session.combo >= 2) {
+    el.classList.add("show");
+    el.classList.toggle("hot", session.combo >= 10);
+    el.textContent = `×${session.combo}`;
+  } else {
+    el.classList.remove("show", "hot");
+  }
+}
+
+function updatePbBar() {
+  const el = document.getElementById("pb-bar");
+  const wrap = document.getElementById("pb-bar-wrap");
+  if (state.bestScore <= 0) { wrap.style.opacity = 0.3; el.style.width = "0%"; return; }
+  wrap.style.opacity = 1;
+  const pct = Math.min(100, (session.score / state.bestScore) * 100);
+  el.style.width = pct.toFixed(1) + "%";
+}
+
+function nextQuestion(skipAnim) {
+  const op = pickOp();
+  const q = makeQuestion(op);
+  session.current = q;
+  const qEl = document.getElementById("question");
+  qEl.innerHTML = q.display;
+  if (!skipAnim) {
+    qEl.classList.remove("changing");
+    // force reflow so the animation re-runs
+    void qEl.offsetWidth;
+    qEl.classList.add("changing");
+  }
+  session.questionStart = performance.now();
+}
+
+function spawnFloater(text, kind) {
+  const host = document.getElementById("floater-host");
+  if (!host) return;
+  const el = document.createElement("div");
+  el.className = "floater" + (kind ? " " + kind : "");
+  el.textContent = text;
+  host.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+
+function flashBg() {
+  const el = document.getElementById("flash-layer");
+  if (!el) return;
+  el.classList.remove("on");
+  void el.offsetWidth;
+  el.classList.add("on");
+  setTimeout(() => el.classList.remove("on"), 80);
+}
+
+function onAnswerInput() {
+  const el = document.getElementById("answer");
+  const v = el.value.trim();
+  if (v === "" || v === "-") return;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return;
+  if (n !== session.current.answer) return;
+
+  const elapsed = performance.now() - session.questionStart;
+  const op = session.current.op;
+  const w = questionWeight(session.current);
+  const sb = speedBonus(op, elapsed);
+  // combo: increment unless answer was painfully slow (>3× target)
+  const slowThreshold = 3 * targetTimeMs(state.skill[op]);
+  if (elapsed > slowThreshold) session.combo = 0;
+  else session.combo += 1;
+  session.bestCombo = Math.max(session.bestCombo, session.combo);
+  state.bestCombo = Math.max(state.bestCombo, session.combo);
+  const cb = comboBonus(session.combo);
+  const earned = w * sb + cb;
+
+  session.responses.push({ op, t: elapsed, weight: w, multiplier: sb, comboBonus: cb, earned });
+  adjustSkill(op, elapsed);
+  updateMedian(op, elapsed);
+  session.score += earned;
+  state.totalAnswered += 1;
+  applyUnlocks();
+
+  // dopamine layer
+  tick(sb >= 1.25 ? 1100 : 880);
+  flashBg();
+  let label = `+${earned.toFixed(1)}`;
+  let kind = null;
+  if (sb >= 1.5) { label = `⚡ +${earned.toFixed(1)}`; kind = "fast"; }
+  else if (sb >= 1.25) { label = `+${earned.toFixed(1)}`; kind = "fast"; }
+  else if (cb > 0) { label = `+${earned.toFixed(1)}`; kind = "bonus"; }
+  spawnFloater(label, kind);
+
+  el.value = "";
+  updateScore();
+  updateCombo();
+  updatePbBar();
+  nextQuestion();
+}
+
+// ---------- end ----------
+function endRound() {
+  clearInterval(session.timerId);
+  tick(440);
+
+  // commit per-op deltas
+  const perOpDelta = {};
+  for (const op of OPS) perOpDelta[op] = (state.skill[op] || 0) - (session.skillBefore[op] || 0);
+
+  // newly unlocked
+  const newlyUnlocked = state.unlocks.filter(o => !session.unlocksBefore.includes(o));
+
+  // best score
+  const newBest = session.score > state.bestScore;
+  if (newBest) state.bestScore = session.score;
+
+  // history
+  const today = todayKey();
+  const sessionAvgMs = session.responses.length
+    ? session.responses.reduce((a, r) => a + r.t, 0) / session.responses.length
+    : null;
+  state.history.push({
+    date: today,
+    sessionIdx: state.history.length + 1,
+    score: session.score,
+    areaNorm: areaNorm(state.skill),
+    avgMs: sessionAvgMs,
+  });
+  if (state.history.length > 500) state.history = state.history.slice(-500);
+
+  // daily
+  if (!state.daily[today]) state.daily[today] = { rounds: 0, best: 0, totalCorrect: 0 };
+  state.daily[today].rounds += 1;
+  state.daily[today].best = Math.max(state.daily[today].best, session.score);
+  state.daily[today].totalCorrect += session.score;
+  // prune older than 5 months
+  const cutoffKey = (() => {
+    const d = new Date(); d.setHours(0,0,0,0); d.setMonth(d.getMonth() - 5);
+    return isoDate(d);
+  })();
+  for (const k of Object.keys(state.daily)) {
+    if (k < cutoffKey) delete state.daily[k];
+  }
+
+  // streak
+  updateStreakAfterPlay();
+
+  // daily challenge progress
+  const dailyChallengeJustCompleted = updateDailyChallenge(session);
+
+  // ghost = the skill snapshot at start of *this* round (so end-screen radar shows growth this session)
+  const ghost = session.skillBefore;
+  // for next session's home, we want the radar's ghost overlay to reflect the most recent session's start (matches plan: "previous session's polygon")
+  state.lastRadar = ghost;
+
+  // mini-achievements (must run after all stats are committed)
+  const newAchievements = checkMilestones();
+
+  persistAll();
+
+  // render end screen
+  document.getElementById("end-score-num").textContent = fmtScore(session.score);
+  const avg = session.responses.length
+    ? (session.responses.reduce((a, r) => a + r.t, 0) / session.responses.length / 1000).toFixed(2)
+    : "0.00";
+  const correctCount = session.responses.length;
+  const avgWeight = correctCount
+    ? (session.responses.reduce((a, r) => a + r.weight, 0) / correctCount).toFixed(2)
+    : "0.00";
+  document.getElementById("end-score-sub").textContent =
+    `${correctCount} correct in 2:00 · avg ${avg}s · avg difficulty ${avgWeight}`;
+  document.getElementById("new-best").hidden = !newBest;
+
+  const ub = document.getElementById("unlock-banner");
+  if (newlyUnlocked.length) {
+    ub.hidden = false;
+    ub.textContent = newlyUnlocked.map(o => `${OP_LABEL[o]} now in rotation`).join(" · ");
+  } else {
+    ub.hidden = true;
+  }
+
+  // deltas
+  const dEl = document.getElementById("deltas");
+  dEl.innerHTML = "";
+  for (const op of state.unlocks) {
+    const d = perOpDelta[op] || 0;
+    const sign = d > 0 ? `+${d}` : (d < 0 ? `${d}` : "·");
+    const cls = d > 0 ? "pos" : (d < 0 ? "neg" : "");
+    dEl.innerHTML += `<span class="d ${cls}">${OP_LABEL[op]} ${sign}</span>`;
+  }
+
+  // achievement toasts
+  const tEl = document.getElementById("achievement-toasts");
+  tEl.innerHTML = "";
+  for (const a of newAchievements) {
+    const div = document.createElement("div");
+    div.className = "achievement-toast";
+    div.innerHTML = `<span class="star">★</span>${a.label}`;
+    tEl.appendChild(div);
+  }
+  if (dailyChallengeJustCompleted) {
+    const div = document.createElement("div");
+    div.className = "achievement-toast";
+    div.innerHTML = `<span class="star">✓</span>daily challenge: ${state.dailyChallenge.label}`;
+    tEl.appendChild(div);
+  }
+
+  // insight
+  document.getElementById("insight").textContent = buildInsight({
+    responses: session.responses,
+    score: session.score,
+    perOpDelta,
+    prevSkill: session.skillBefore,
+    bestCombo: session.bestCombo,
+  });
+
+  // end-screen radar with ghost = pre-session skill
+  renderRadar(document.getElementById("radar-end"), state.skill, session.skillBefore);
+
+  setScreen("end");
+  // also refresh the home dashboard so it's ready when user goes back
+  renderHome();
+}
+
+// ---------- input wiring ----------
+const answerInput = document.getElementById("answer");
+answerInput.addEventListener("input", onAnswerInput);
+
+document.addEventListener("keydown", (e) => {
+  // Esc on round/end → home
+  if (e.key === "Escape") {
+    if (!screens.round.hidden) {
+      if (session && session.timerId) clearInterval(session.timerId);
+      setScreen("home");
+      renderHome();
+    } else if (!screens.end.hidden) {
+      setScreen("home");
+      renderHome();
+    }
+    return;
+  }
+  // Space/Enter on home or end → start
+  if (e.key === " " || e.key === "Enter") {
+    if (!screens.home.hidden) {
+      e.preventDefault();
+      startRound();
+    } else if (!screens.end.hidden) {
+      e.preventDefault();
+      startRound();
+    }
+  }
+});
+
+document.getElementById("audio-toggle").addEventListener("click", () => {
+  state.audio = !state.audio;
+  if (state.audio) ensureAudioCtx();
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  safeSet(KEYS.audio, state.audio);
+  document.getElementById("audio-toggle").textContent = `audio: ${state.audio ? "on" : "off"}`;
+  if (state.audio) tick(880);
+});
+
+document.getElementById("reset-btn").addEventListener("click", () => {
+  if (!confirm("Wipe all local data (skill, scores, streak, history)?")) return;
+  for (const k of Object.values(KEYS)) localStorage.removeItem(k);
+  state = loadState();
+  adjustStreakOnLoad();
+  renderHome();
+});
+
+// ---------- init ----------
+renderHome();
+setScreen("home");
+</script>
+</body>
+</html>
