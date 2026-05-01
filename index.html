@@ -2067,11 +2067,11 @@ function onAnswerInput() {
   const challengeMul = session.current.isChallenge ? 2 : 1;
   const earned = (w * sb + cb) * challengeMul;
 
-  // Rush factor — chain-based, gated at 2s per answer. The longer you
-  // sustain sub-2s answers in a row, the higher rush climbs. One slow
-  // answer (≥ 2s) breaks the chain and rush resets. Reaches max at an
-  // 8-in-a-row sub-2s streak; harmonics kick in at chain 3 and 6.
-  const FLOW_GATE_MS = 2000;
+  // Rush factor — chain-based, gated at 2.3s per answer. The longer you
+  // sustain sub-2.3s answers in a row, the higher rush climbs. One slow
+  // answer (≥ 2.3s) breaks the chain and rush resets. Reaches max at an
+  // 8-in-a-row sub-2.3s streak; harmonics kick in at chain 3 and 6.
+  const FLOW_GATE_MS = 2300;
   if (elapsed < FLOW_GATE_MS) {
     session.flowChain = (session.flowChain || 0) + 1;
   } else {
